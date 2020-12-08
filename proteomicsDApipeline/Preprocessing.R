@@ -18,8 +18,7 @@ impute_data = function(df, width=0.2 ,downshift=3.5) {
   10**df
 }
 
-preprocessing<-function(filterlevel, flag.normalize, flag.impute, impute.method){
-dat<-fixed_data
+preprocessing<-function(dat,DoE,filterlevel, flag.normalize, flag.impute, impute.method){
 #filter
 dat<-data.frame(dat[apply(dat,1,function(x) sum(!is.na(x))>filterlevel/100*length(x)),])
 #normalization

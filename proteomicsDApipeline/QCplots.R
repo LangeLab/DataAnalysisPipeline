@@ -5,7 +5,7 @@ library(ggsci)
 library(ggpubr)
 library(UpSetR)
 
-cvplots<-function(flag){
+cvplots<-function(fixed_data, DoE, flag){
   cvs <- apply(na.omit(fixed_data), 1, function(x) (sd(x, na.rm = TRUE)/mean(x, na.rm = TRUE)) * 100)
   if (flag==1){
     ggplot(data.frame(name = "CV", CV = cvs), aes(x = CV, y = name)) + 
@@ -28,7 +28,7 @@ cvplots<-function(flag){
   }
 }
 
-distIndProtein<-function(group){
+distIndProtein<-function(fixed_data, DoE, group){
   num.proteins<-apply(fixed_data, 2, function(x) sum(!is.na(x)))
   temp.df<-data.frame(number.protein=num.proteins, sample=colnames(fixed_data),condition=DoE[,group])
   ggbarplot(temp.df, x="sample",y= "number.protein",
@@ -44,7 +44,7 @@ distIndProtein<-function(group){
     ggtitle("Number of available proteins per sample, colored by condition")
 }
 
-upsetplot<-function(group){
+upsetplot<-function(fixed_data, DoE, group){
   flag.df <- data.frame(fixed_data)
   flag.df <-data.frame(1*(!is.na(flag.df)))
   protein=rownames(flag.df)
@@ -56,7 +56,7 @@ upsetplot<-function(group){
   upset(fromList(group.flag.df), order.by="freq",decreasing=T,cutoff=0)
 }
 
-datacompleteness<-function(){
+datacompleteness<-function(fixed_data, DoE){
   percent.samples<-apply(fixed_data, 1, function(x) sum(!is.na(x))/ncol(fixed_data))
   percent.samples<-percent.samples[order(percent.samples,decreasing=TRUE)]
   temp.df<-data.frame(protein=1:nrow(fixed_data),datacompleteness=percent.samples)

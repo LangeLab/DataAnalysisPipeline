@@ -41,17 +41,20 @@ testingDEmethods<-function(data,methodin,FoI,DoE){
     names<-rownames(data)
   }
   
+  
   df<-data.frame(log2FC=log2FC,pvalue=pvalues, name=names)
-  df<- df %>% mutate(significance=(pvalue<0.05)&(abs(log2FC)>1))
+  df<- df %>% mutate(significance="no significance")
+  df$significance[(df$pvalue<0.05)&(abs(df$log2FC)>1)]<-"significance"
+  df$significance<-as.factor(df$significance)
   df
 }
 
-testingDE<-function(data,methodin,FoI,flagblock,blockfactor){
+testingDE<-function(data,DoE,methodin,FoI,flagblock,blockfactor){
   data<-na.omit(data)
   DoE[,FoI]<-as.factor(DoE[,FoI])
   if (flagblock==FALSE){
   df<-testingDEmethods(data,methodin,FoI,DoE)
-  ggplot(df, aes(x=log2FC, y=-log10(pvalue),color=significance,
+  g<-ggplot(df, aes(x=log2FC, y=-log10(pvalue),color=significance,
                  fill=significance, alpha=significance, label=name))+
   geom_point()+
   geom_vline(xintercept=1, linetype="dashed", color="darkgrey")+
@@ -83,7 +86,7 @@ testingDE<-function(data,methodin,FoI,flagblock,blockfactor){
      df$significance[is.na(df$significance)]<-"no significance"
      df$significance <-factor(df$significance,levels=(c("significance in block 1", "significance in block 2", "significance in both blocks", "no significance")))
     
-     ggplot(df, aes(x=log2FC1,y=log2FC2,color=significance, alpha=significance, label=name))+
+     g<-ggplot(df, aes(x=log2FC1,y=log2FC2,color=significance, alpha=significance, label=name))+
        geom_point()+
        geom_vline(xintercept=1, linetype="dashed", color="darkgrey")+
        geom_vline(xintercept=-1, linetype="dashed", color="darkgrey")+
@@ -98,8 +101,7 @@ testingDE<-function(data,methodin,FoI,flagblock,blockfactor){
                        force=0.5, nudge_x = 2, direction="y",
                        hjust=0,segment.size=0.1,size=3)+
        labs(y="log2 fold change on block 1",x="log2 fold change on block 2")+theme_classic() 
-     
     }
-    
   }
+  return(list(DEdf=filter(df,significance!="no significance"),graph=g))
 }
