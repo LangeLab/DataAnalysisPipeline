@@ -18,16 +18,17 @@ fcluster<-function(data, method, rows, whetherlabel, ncenter){
                Rowv=FALSE, labRow = whetherlabel,
                density.info = "none", cexRow=0.75, cexCol=0.75,)
   }
-#  if (method=="KMeans"){
-#    res.km<-kmeans(t(na.omit(ds)),centers=ncenter)
-#    fviz_cluster(res.km, data=t(na.omit(ds)),
-#                 palette="npg",
-#                 geom = c("point", "text"),
-#                 repel=TRUE,
-#                 ellipse.type = "convex", 
-#                 ggtheme = theme_bw()
-#    )
-#  }
+  if (method=="k-means"){
+    res.km<-kmeans(t(na.omit(ds)),centers=ncenter)
+    g<-fviz_cluster(res.km, data=t(na.omit(ds)),
+                 palette="npg",
+                 geom = c("point", "text"),
+                 repel=TRUE,
+                 ellipse.type = "convex", 
+                 ggtheme = theme_bw()
+    )
+    return(g)
+  }
   if (method=="Fuzzy Clustering"){
     res.fcm <- cmeans(t(na.omit(ds)), centers=ncenter)
     corrplot(t(res.fcm$membership), is.corr = FALSE, 

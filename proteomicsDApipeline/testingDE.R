@@ -6,9 +6,8 @@ library(ggrepel)
 library(ggsci)
 library(reshape2)
 
-eb.fit <- function(dat, design){
-  n <- dim(dat)[1]
-  fit <- lmFit(dat, design)
+eb.fit <- function(dat, design, wm){
+  fit <- lmFit(dat, design, weights=wm)
   fit.eb <- eBayes(fit)
   log2FC <- fit.eb$coefficients[, 2]
   p.mod <- fit.eb$p.value[, 2]
@@ -16,17 +15,18 @@ eb.fit <- function(dat, design){
   return(results.eb)
 }
 
-testingDEmethods<-function(data,methodin,FoI,DoE){
+testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
   ind<-which(DoE[,1] %in% colnames(data))
   DoE<-DoE[ind,]
   if (methodin=="limma"){
     design <- model.matrix(~DoE[,FoI])
-    res.eb <- eb.fit(log2(data), design)
+    res.eb <- eb.fit(log2(data), design, as.matrix(weight.m))
     pvalues<-res.eb$p.mod
     names<-rownames(data)
     log2FC<-res.eb$log2FC
   }
   if (methodin=="t-test"){
+    data<-na.omit(data)
     pvalues<-numeric(nrow(data))
     log2FC<-numeric(nrow(data))
     i<-1
@@ -49,11 +49,16 @@ testingDEmethods<-function(data,methodin,FoI,DoE){
   df
 }
 
-testingDE<-function(data,DoE,methodin,FoI,flagblock,blockfactor){
-  data<-na.omit(data)
+testingDE<-function(data,DoE,methodin,FoI,flagblock,blockfactor, flagweight, NAweight, NAind){
+weight.m<-matrix(1, nrow=nrow(data), ncol=ncol(data))
+colnames(weight.m)<-colnames(data)
+   if (flagweight==TRUE){
+    data[is.na(data)]<-1
+    weight.m[NAind]<-NAweight
+    }
   DoE[,FoI]<-as.factor(DoE[,FoI])
   if (flagblock==FALSE){
-  df<-testingDEmethods(data,methodin,FoI,DoE)
+  df<-testingDEmethods(data,methodin,FoI,DoE,weight.m)
   g<-ggplot(df, aes(x=log2FC, y=-log10(pvalue),color=significance,
                  fill=significance, alpha=significance, label=name))+
   geom_point()+
@@ -75,8 +80,10 @@ testingDE<-function(data,DoE,methodin,FoI,flagblock,blockfactor){
      grouping<-levels(as.factor(DoE[,blockfactor]))
      samples1<-DoE[which(DoE[,blockfactor]==grouping[1]),1]
      samples2<-DoE[which(DoE[,blockfactor]==grouping[2]),1]
-     df1<-testingDEmethods(data[,samples1],methodin,FoI,DoE)
-     df2<-testingDEmethods(data[,samples2],methodin,FoI,DoE)
+     weight.m1<-weight.m[,samples1]
+     weight.m2<-weight.m[,samples2]
+     df1<-testingDEmethods(data[,samples1],methodin,FoI,DoE,weight.m1)
+     df2<-testingDEmethods(data[,samples2],methodin,FoI,DoE,weight.m2)
      df<-data.frame(log2FC1=df1$log2FC, log2FC2=df2$log2FC,
                     pvalue1=df1$pvalue, pvalue2=df2$pvalue, name=df1$name)
      df <- df %>% mutate(significance=case_when(

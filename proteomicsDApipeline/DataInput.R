@@ -21,10 +21,10 @@ for (i in 1:nrow(fixed_data)){
 if(length(ind)!=0){
   fixed_data <- fixed_data[-ind, ]
 }
-return(fixed_data)
+return(data.frame(fixed_data))
 }
 
-setdoe<-function(meta_data){
+setdoe<-function(meta_data,fixed_data){
 # set up DoE matrix
 DoE<-meta_data[na.omit(match(meta_data[,1],colnames(fixed_data))),]
 return(DoE)

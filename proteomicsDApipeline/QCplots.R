@@ -4,7 +4,8 @@ library(dplyr)
 library(ggsci)
 library(ggpubr)
 library(UpSetR)
-
+library(ggcorrplot)
+library(patchwork)
 cvplots<-function(fixed_data, DoE, flag){
   cvs <- apply(na.omit(fixed_data), 1, function(x) (sd(x, na.rm = TRUE)/mean(x, na.rm = TRUE)) * 100)
   if (flag==1){
@@ -61,4 +62,13 @@ datacompleteness<-function(fixed_data, DoE){
   percent.samples<-percent.samples[order(percent.samples,decreasing=TRUE)]
   temp.df<-data.frame(protein=1:nrow(fixed_data),datacompleteness=percent.samples)
   ggplot(temp.df,aes(protein,datacompleteness))+geom_point()+labs(y="Data Completeness",x="Unique Protein")+theme_classic()
+}
+
+corplot<-function(fixed_data){
+  fixed_data<-log2(fixed_data)
+  M.pearson<-cor(na.omit(fixed_data), method="pearson")
+  M.spearman<-cor(na.omit(fixed_data), method="spearman")
+  g1<-ggcorrplot(M.pearson,tl.cex=5,type = "lower",outline.col = "white")+ggtitle("Pearson correlation for all samples")
+  g2<-ggcorrplot(M.spearman,tl.cex=5,type = "lower",outline.col = "white")+ggtitle("Spearman correlation for all samples")
+  g1+g2
 }

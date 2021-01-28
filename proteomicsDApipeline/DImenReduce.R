@@ -5,9 +5,9 @@ library(ggplot2)
 library(ggsci)
 library(M3C)
 
-dimen.reduce<-function(data, DoE, method, colorfactor){
+dimen.reduce<-function(data, DoE, method, colorfactor, tSNEper=NULL){
   if (method=="PCA"){
-    m<-log10(t(na.omit(data)))
+    m<-log2(t(na.omit(data)))
     res.pca <- prcomp(m,scale. = TRUE)
     g<-fviz_pca_ind(res.pca,
                  geom="point", palette="npg",
@@ -17,9 +17,10 @@ dimen.reduce<-function(data, DoE, method, colorfactor){
     )
   }
   if (method=="t-SNE"){
-    m<-log10(t(na.omit(data)))
-    tsne <- Rtsne(m, dims = 2, perplexity=round((nrow(m)-1)/3)-1, 
-    theta=0, verbose=TRUE, max_iter = 1000, normalize=FALSE)
+    m<-log2(t(na.omit(data)))
+    if (tSNEper==0){tSNEper<-round((nrow(m)-1)/3)-1}
+    tsne <- Rtsne(m, dims = 2, perplexity=tSNEper, 
+    theta=0, verbose=TRUE, max_iter = 1500, normalize=FALSE)
     df<-data.frame(tsne$Y)
     colnames(df)<-c("V1","V2")
     df$group<-as.factor(DoE[,colorfactor])
@@ -28,7 +29,7 @@ dimen.reduce<-function(data, DoE, method, colorfactor){
       theme_classic()+scale_color_npg()
   }
   if (method=="UMAP"){
-    m<-log10(na.omit(data))
+    m<-log2(na.omit(data))
     g<-umap(m,labels=as.factor(DoE[,colorfactor]))
   }
   return(g)
