@@ -1,0 +1,62 @@
+---
+title: "Report by"
+output: html_document
+params:
+  imported: NA
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## 1 Sample-based quality control plots
+- %CV violin plot
+- %CV stacked bar chart
+- Bar chart of # available proteins in each sample, colored by group
+- Upset plot shows overlap of available proteins across groups
+- Data completeness
+- Pearson and Speerman correlation plot
+
+```{r}
+params$imported$cvviolin
+params$imported$cvstacked
+params$imported$distprotein
+params$imported$upset
+params$imported$datacompleteness
+params$imported$corplot
+```
+
+## 2 Pre-processing
+Violin plot of protein intensities of all samples after pre-processing steps.
+
+```{r}
+params$imported$violinplot
+```
+
+## 3 Statistical inference
+### 3.1 Equivalence test
+```{r}
+if (exists("eqtest1", params$imported)){
+  params$imported$eqtest1}
+if (exists("eqtest2", params$imported)){
+  params$imported$eqtest2}
+```
+
+### 3.2 Differential expression test
+Volcano plot of differential expression tests. 
+```{r}
+params$imported$volcanoplot
+```
+
+## 4 Dimension reduction
+```{r}
+params$imported$dmr
+```
+
+## 5 Clustering
+```{r}
+params$imported$clustering
+```
+
+# Reference 
+[link]shiny app 

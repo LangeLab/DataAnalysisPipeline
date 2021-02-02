@@ -1,5 +1,5 @@
-library(shiny)
 library(shinydashboard)
+library(shiny)
 source("DataInput.R")
 source("QCPlots.R")
 source("Preprocessing.R")
@@ -19,7 +19,8 @@ ui <- dashboardPage(
         menuItem("Pre-processing", tabName = "PP"),
         menuItem("Statistical Inference", tabName = "StatInf"),
         menuItem("Dimensionality reduction", tabName = "DR"),
-        menuItem("Clustering", tabName = "Clustering"))),
+        menuItem("Clustering", tabName = "Clustering"),
+        menuItem("Generate a report", tabName="GenerateReport"))),
         dashboardBody(
             tabItems(
                 tabItem(tabName="IA",
@@ -172,12 +173,15 @@ ui <- dashboardPage(
                                          numericInput("clusternum", 
                                                       h5("the number of centers: "), 
                                                       value = 4)),
-                        plotOutput("cluster"))
+                        plotOutput("cluster")),
+                tabItem(tabName="GenerateReport",
+                        downloadButton("report", "Generate report"))
             )
     )
 )
 # Define server logic ----
 server <- function(input, output) {
+    report_vals <- reactiveValues()
     termini_data<-reactive({
         req(input$termini_data)
         if(grepl(".xlsx",input$termini_data$name)){
@@ -291,25 +295,33 @@ server <- function(input, output) {
                     selected = NULL)
     })
     
-    output$graph1 <- renderPlot({cvplots(fixed_data(),DoE(),1)})
-    output$graph2 <- renderPlot({cvplots(fixed_data(),DoE(),2)})
-    output$graph3 <- renderPlot({distIndProtein(fixed_data(),DoE(),input$group)})
-    output$graph4 <- renderPlot({upsetplot(fixed_data(),DoE(),input$group2)})
-    output$graph5 <- renderPlot({datacompleteness(fixed_data(),DoE())})
-    output$graph6 <- renderPlot({corplot(fixed_data())})
+    output$graph1 <- renderPlot({
+        report_vals$cvviolin<-cvplots(fixed_data(),DoE(),1)
+        report_vals$cvviolin})
+    output$graph2 <- renderPlot({
+        report_vals$cvstacked<-cvplots(fixed_data(),DoE(),2)
+        report_vals$cvstacked})
+    output$graph3 <- renderPlot({
+        report_vals$distprotein<-distIndProtein(fixed_data(),DoE(),input$group)
+        report_vals$distprotein})
+    output$graph4 <- renderPlot({
+        report_vals$upset<-upsetplot(fixed_data(),DoE(),input$group2)
+        report_vals$upset})
+    output$graph5 <- renderPlot({
+        report_vals$datacompleteness<-datacompleteness(fixed_data(),DoE())
+        report_vals$datacompleteness})
+    output$graph6 <- renderPlot({
+        report_vals$corplot<-corplot(fixed_data())
+        report_vals$corplot})
     
     react_res_pp<-reactive({preprocessing(fixed_data(), DoE(), input$filterlevel, input$normalization,
                                               input$whetherimpute, input$imputation)})
     react_fixed_data<-reactive({react_res_pp()[["data"]]})
     na_index<-reactive({react_res_pp()[["na.index"]]})
     
-    output$view <- renderTable({
-        sub.head<-head(react_fixed_data(), n=5)
-        sub.head[,1:5]
-    })
-    
     output$viewviolin <- renderPlot({
-        plotviolin(react_fixed_data())
+        report_vals$violinplot<-plotviolin(react_fixed_data())
+        report_vals$violinplot
     })
     
     # equivalence test FoI and FoI levels
@@ -328,38 +340,60 @@ server <- function(input, output) {
                     selected = NULL, multiple=TRUE)
     })
     output$eqtestres1<- renderPlot({
-        eqtest.row(react_fixed_data(), DoE(), input$eqFoI, 
-                          input$eqFoIlevels[1], input$eqFoIlevels[2], 
-                          input$lowerbound, input$upperbound)
+        report_vals$eqtest1<-eqtest.row(react_fixed_data(), DoE(), input$eqFoI, 
+                            input$eqFoIlevels[1], input$eqFoIlevels[2], 
+                            input$lowerbound, input$upperbound)
+        report_vals$eqtest1
     })
     output$eqtestres2<-renderPlot({
-        eqtest.all(react_fixed_data(), DoE(), input$eqFoI, 
-                          input$eqFoIlevels[1], input$eqFoIlevels[2], 
-                         input$lowerbound, input$upperbound)
+        report_vals$eqtest2<-eqtest.all(react_fixed_data(), DoE(), input$eqFoI, 
+                            input$eqFoIlevels[1], input$eqFoIlevels[2], 
+                            input$lowerbound, input$upperbound)
+        report_vals$eqtest2
     })
     listoutput<-reactive({testingDE(react_fixed_data(), DoE(),input$DEtest, 
                                     input$FoI, input$whetherblock,input$blockfactor, 
                                     input$whetherweighting, input$NAweights, na_index())})
 
     output$volcanoplot <- renderPlot({
-        listoutput()[["graph"]]
+        report_vals$volcanoplot<-listoutput()[["graph"]]
+        report_vals$volcanoplot
     })
     
     output$dimenreduction <- renderPlot({
-        g<-dimen.reduce(react_fixed_data(), DoE(), input$DRmethod, input$colorfactor, input$tSNEper)
-        g
+        report_vals$dmr<-dimen.reduce(react_fixed_data(), DoE(), input$DRmethod, input$colorfactor, input$tSNEper)
+        report_vals$dmr
     })
     
     output$cluster <- renderPlot({
         if (input$rows=="all"){includedrows=c(1:nrow(react_fixed_data()))}else{
             includedrows=listoutput()[["DEdf"]]$name}
         if (input$Cmethod=="Hierarchical Clustering"){
-            g<-fcluster(react_fixed_data(), input$Cmethod, includedrows, input$whetherlabel, 0)
+            report_vals$clustering<-fcluster(react_fixed_data(), input$Cmethod, includedrows, input$whetherlabel, 0)
         }else{
-            g<-fcluster(react_fixed_data(), input$Cmethod, includedrows, FALSE, input$clusternum)
+            report_vals$clustering<-fcluster(react_fixed_data(), input$Cmethod, includedrows, FALSE, input$clusternum)
         }
-        g
+        report_vals$clustering
     })
+    
+    output$report <- downloadHandler(
+        filename = "report.html",
+        content = function(file) {
+            # Copy the report file to a temporary directory before processing it, in
+            # case we don't have write permissions to the current working dir (which
+            # can happen when deployed).
+            tempReport <- file.path(tempdir(), "report.Rmd")
+            file.copy("report.Rmd", tempReport, overwrite = TRUE)
+            # Knit the document, passing in the `params` list, and eval it in a
+            params0<-list(imported=report_vals)
+            # child of the global environment (this isolates the code in the document
+            # from the code in this app).
+            rmarkdown::render(tempReport, output_file = file,
+                              params = params0,
+                              envir = new.env(parent = globalenv())
+            )
+        }
+    )
 }
 
 # Run the app ----

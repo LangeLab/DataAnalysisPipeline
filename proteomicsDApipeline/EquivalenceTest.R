@@ -34,6 +34,7 @@ g<-ggplot(eq.pvalues, aes(x=log2FC, y=-log10(maxp),
                           color=equivalence,
                           alpha=equivalence, 
                           label=name))+
+  ggtitle("Plot of equivalence test significance for each protein")+
   geom_point()+scale_alpha_manual(values=c(0.2, 1.0 ,0))
   return(g)
 }
