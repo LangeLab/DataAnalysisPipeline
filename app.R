@@ -1,7 +1,7 @@
 library(shinydashboard)
 library(shiny)
 source("DataInput.R")
-source("QCPlots.R")
+source("QCplots.R")
 source("Preprocessing.R")
 source("testingDE.R")
 source("DimenReduce.R")
