@@ -5,7 +5,10 @@ library(ggplot2)
 library(ggsci)
 library(M3C)
 
-dimen.reduce<-function(data, DoE, method, colorfactor, tSNEper=NULL){
+dimen.reduce<-function(data, DoE, method, colorfactor, tSNEper=NULL, rows){
+  if (is.null(rows)){return()}
+    data<-data[rows,]
+    if (nrow(na.omit(data))<2){return()}
   if (method=="PCA"){
     m<-log2(t(na.omit(data)))
     res.pca <- prcomp(m,scale. = TRUE)
