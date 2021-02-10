@@ -7,6 +7,7 @@ library(ggrepel)
 eqtest.row<-function(data, DoE, FoI, FoI1, FoI2, lowbound, upbound){
 i<-1
 data<-log10(data)
+if(any(is.null(c(FoI1, FoI2)))){return()}
 ind1<-DoE[which(DoE[,FoI]==FoI1),1]
 ind2<-DoE[which(DoE[,FoI]==FoI2),1]
 eq.pvalues<-matrix(NA, nrow=nrow(data),ncol=3)
@@ -42,6 +43,7 @@ g<-ggplot(eq.pvalues, aes(x=log2FC, y=-log10(maxp),
 #d=="By column, test all proteins at the same time"
 eqtest.all<-function(data, DoE, FoI, FoI1, FoI2, lowbound, upbound){
   data<-log10(data)
+  if(any(is.null(c(FoI1, FoI2)))){return()}
   ind1<-DoE[which(DoE[,FoI]==FoI1),1]
   ind2<-DoE[which(DoE[,FoI]==FoI2),1]
   m1<-mean(as.matrix(data[,ind1]),na.rm=TRUE)

@@ -382,8 +382,9 @@ server <- function(input, output) {
             # Copy the report file to a temporary directory before processing it, in
             # case we don't have write permissions to the current working dir (which
             # can happen when deployed).
-            tempReport <- file.path(tempdir(), "report.Rmd")
-            file.copy("report.Rmd", tempReport, overwrite = TRUE)
+            tempReport <- file.path("/srv/shiny-server/DA/report.Rmd")
+            #tempReport<-file.path(tempdir(), "report.rmd")
+            file.copy("report0.Rmd", tempReport, overwrite = TRUE)
             # Knit the document, passing in the `params` list, and eval it in a
             params0<-list(imported=report_vals)
             # child of the global environment (this isolates the code in the document

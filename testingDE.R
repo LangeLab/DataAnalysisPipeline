@@ -31,7 +31,8 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
     log2FC<-numeric(nrow(data))
     i<-1
     for (i in 1:nrow(data)){
-      ds<-melt(t(log2(data[i,])))[,-1]
+      ds<-reshape2::melt(log2(data[i,]))
+      ds[,1]<-as.character(ds[,1])
       ds[,3]<-DoE[match(ds[,1],DoE[,1]),FoI]
       colnames(ds)<-c("sample","intensity","FoI")
       ts<-t.test(formula=intensity~FoI, data=ds)
@@ -76,7 +77,7 @@ colnames(weight.m)<-colnames(data)
   labs(x=paste0("log2 fold change of ", FoI,": ",levels(DoE[,FoI])[2]," over ", levels(DoE[,FoI])[1]))+
   theme_classic()
   }else{
-   if (blockfactor==FoI){print("Error: blocking factor cannot be the same as testing factor.")}else{
+   if (blockfactor==FoI){return()}else{
      grouping<-levels(as.factor(DoE[,blockfactor]))
      samples1<-DoE[which(DoE[,blockfactor]==grouping[1]),1]
      samples2<-DoE[which(DoE[,blockfactor]==grouping[2]),1]
@@ -84,8 +85,11 @@ colnames(weight.m)<-colnames(data)
      weight.m2<-weight.m[,samples2]
      df1<-testingDEmethods(data[,samples1],methodin,FoI,DoE,weight.m1)
      df2<-testingDEmethods(data[,samples2],methodin,FoI,DoE,weight.m2)
-     df<-data.frame(log2FC1=df1$log2FC, log2FC2=df2$log2FC,
-                    pvalue1=df1$pvalue, pvalue2=df2$pvalue, name=df1$name)
+     df <- df1 %>% filter(name %in% df2$name) %>% dplyr::select(name)
+     df$log2FC1 <- df1$log2FC[match(df$name,df1$name)]
+     df$log2FC2 <- df2$log2FC[match(df$name,df2$name)]
+     df$pvalue1 <- df1$pvalue[match(df$name,df1$name)]
+     df$pvalue2 <- df2$pvalue[match(df$name,df2$name)]
      df <- df %>% mutate(significance=case_when(
        (pvalue1 < 0.05) & (abs(log2FC1)>1) &(!((pvalue2 < 0.05) & (abs(log2FC2)>1))) ~ "significance in block 1", 
        (pvalue2 < 0.05) & (abs(log2FC2)>1) &(!((pvalue1 < 0.05) & (abs(log2FC1)>1))) ~ "significance in block 2",
