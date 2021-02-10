@@ -390,14 +390,14 @@ server <- function(input, output) {
             #tempReport<-file.path(tempdir(), "report.rmd")
             #file.copy("report.Rmd", tempReport, overwrite = TRUE)
             # Knit the document, passing in the `params` list, and eval it in a
-            src <- normalizePath("report.Rmd")
+            src <- normalizePath("report.rmd")
             owd <- setwd(tempdir())
             on.exit(setwd(owd))
-            file.copy(src, "report.Rmd", overwrite = TRUE)
+            file.copy(src, "report.rmd", overwrite = TRUE)
             params0<-list(imported=report_vals)
             # child of the global environment (this isolates the code in the document
             # from the code in this app).
-            out<-rmarkdown::render("report.Rmd", output_file = file,params = params0)
+            out<-rmarkdown::render("report.rmd", output_file = file,params = params0)
             file.rename(out, file)
         }
     )
