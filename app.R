@@ -147,6 +147,9 @@ ui <- dashboardPage(
                 tabItem(tabName = "DR",
                         # Dimensionality Reduction
                         h4("4. Dimensionality reduction"),
+                        selectInput(inputId = "DRrows", 
+                                    label="use the rows of...",
+                                    choices=c("all","significant")),
                         selectInput(inputId = "DRmethod", 
                                     label="use the method of...",
                                     choices=c("PCA","t-SNE", "UMAP")),
@@ -361,7 +364,9 @@ server <- function(input, output) {
     })
     
     output$dimenreduction <- renderPlot({
-        report_vals$dmr<-dimen.reduce(react_fixed_data(), DoE(), input$DRmethod, input$colorfactor, input$tSNEper)
+        if (input$DRrows=="all"){includedrows=c(1:nrow(react_fixed_data()))}else{
+            includedrows=listoutput()[["DEdf"]]$name}
+        report_vals$dmr<-dimen.reduce(react_fixed_data(), DoE(), input$DRmethod, input$colorfactor, input$tSNEper, includedrows)
         report_vals$dmr
     })
     
