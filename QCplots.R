@@ -6,32 +6,31 @@ library(ggpubr)
 library(UpSetR)
 library(ggcorrplot)
 library(patchwork)
-cvplots<-function(fixed_data, DoE, flag){
+cvplots<-function(fixed_data, DoE){
   cvs <- apply(na.omit(fixed_data), 1, function(x) (sd(x, na.rm = TRUE)/mean(x, na.rm = TRUE)) * 100)
-  if (flag==1){
-    ggplot(data.frame(name = "CV", CV = cvs), aes(x = CV, y = name)) + 
+  g1<-ggplot(data.frame(name = "CV", CV = cvs), aes(x = CV, y = name)) + 
     geom_violin() + 
     geom_vline(xintercept = mean(cvs), color = "red", linetype = "dashed") + 
     geom_text(data = data.frame(x = median(cvs),y = 0), aes(x, y), 
               label = round(median(cvs), digits = 1), vjust = -0.8, hjust = -0.2,color = "red", size = 3.5) + 
     labs(y = "", x = "%CV") + coord_flip() + theme_classic()
-  }else{
+
   temp.df <- data.frame(protein = "Protein Groups", CV = cvs, number = 1)
   temp.df <- temp.df %>% mutate(range = case_when(CV < 10 ~ "<10%", 
                                                   (CV > 10) & (CV < 20) ~ "10%~20%", 
                                                   (CV > 20) & (CV < 50) ~ "20%~50%", 
                                                   CV > 50 ~ ">50%"))
   temp.df$range <- ordered(temp.df$range, levels = c(">50%", "20%~50%", "10%~20%", "<10%"))
-    ggplot(temp.df, aes(x = protein, y = number, fill = range)) +
+  g2<-ggplot(temp.df, aes(x = protein, y = number, fill = range)) +
     geom_bar(position = "stack", stat = "identity", width = 0.5) + 
     scale_fill_npg() +
     labs(y = "Numbers of protein",x = "", fill = "%CV") + theme_classic()
-  }
+  g1+g2
 }
 
 distIndProtein<-function(fixed_data, DoE, group){
   num.proteins<-apply(fixed_data, 2, function(x) sum(!is.na(x)))
-  temp.df<-data.frame(number.protein=num.proteins, sample=colnames(fixed_data),condition=DoE[,group])
+  temp.df<-data.frame(number.protein=num.proteins, sample=colnames(fixed_data),condition=DoE[match(colnames(fixed_data),DoE[,1]),group])
   ggbarplot(temp.df, x="sample",y= "number.protein",
             fill = "condition",               # change fill color by condition
             color = "white",            # Set bar border colors to white
@@ -61,14 +60,21 @@ datacompleteness<-function(fixed_data, DoE){
   percent.samples<-apply(fixed_data, 1, function(x) sum(!is.na(x))/ncol(fixed_data))
   percent.samples<-percent.samples[order(percent.samples,decreasing=TRUE)]
   temp.df<-data.frame(protein=1:nrow(fixed_data),datacompleteness=percent.samples)
-  ggplot(temp.df,aes(protein,datacompleteness))+geom_point()+labs(y="Data Completeness",x="Unique Protein")+theme_classic()
+  ggplot(temp.df,aes(protein,datacompleteness))+geom_point()+labs(y="Data Completeness",x="Unique Protein")+
+  geom_hline(yintercept=0.99, linetype="dashed", color = "red")+
+  annotate("text", nrow(temp.df), 0.99, vjust = -0.5, label = "99%", color="red")+
+  geom_hline(yintercept=0.9, linetype="dashed", color = "red")+
+  annotate("text", nrow(temp.df), 0.9, vjust = -0.5, label = "90%", color="red")+
+  geom_hline(yintercept=0.5, linetype="dashed", color = "red")+
+  annotate("text", nrow(temp.df), 0.5, vjust = -0.5, label = "50%", color="red")+
+  theme_classic()
 }
 
 corplot<-function(fixed_data){
   fixed_data<-log2(fixed_data)
   M.pearson<-cor(na.omit(fixed_data), method="pearson")
   M.spearman<-cor(na.omit(fixed_data), method="spearman")
-  g1<-ggcorrplot(M.pearson,tl.cex=5,type = "lower",outline.col = "white")+ggtitle("Pearson correlation for all samples")
-  g2<-ggcorrplot(M.spearman,tl.cex=5,type = "lower",outline.col = "white")+ggtitle("Spearman correlation for all samples")
+  g1<-ggcorrplot(M.pearson,tl.cex=5,type = "lower",outline.col = "white",hc.order=TRUE)+ggtitle("Pearson correlation for all samples")
+  g2<-ggcorrplot(M.spearman,tl.cex=5,type = "lower",outline.col = "white",hc.order=TRUE)+ggtitle("Spearman correlation for all samples")
   g1+g2
 }

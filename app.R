@@ -1,5 +1,6 @@
 library(shinydashboard)
 library(shiny)
+library(shinycssloaders)
 source("DataInput.R")
 source("QCplots.R")
 source("Preprocessing.R")
@@ -26,56 +27,68 @@ ui <- dashboardPage(
                 tabItem(tabName="IA",
                         h4("File input"),
                         fluidRow(
-                        box(fileInput("raw_data", "please upload .csv/.xlsx file of raw data with quantitative intensities of proteins:",
-                                   multiple = FALSE,
-                                   accept = c("text/csv",
-                                              "text/comma-separated-values,text/plain",
-                                              ".csv", ".xlsx")),
-                         fileInput("meta_data", "please upload .csv/.xlsx file of meta data with only sample names matched with raw data, and corresponding covariates of interest:",
-                                   multiple = FALSE,
-                                   accept = c("text/csv",
-                                              "text/comma-separated-values,text/plain",
-                                              ".csv", ".xlsx"))),
-                        h4("Supplemental file input"),
-                        box(
+                        box(checkboxInput("whether_protein_file", "Upload Protein file", value=FALSE),
+                        conditionalPanel('input.whether_protein_file==1',
+                                         fileInput("protein_data", "please upload .csv/.xlsx file of raw data with quantitative intensities of proteins:",
+                                                   multiple = FALSE,
+                                                   accept = c("text/csv",
+                                                              "text/comma-separated-values,text/plain",
+                                                              ".csv", ".xlsx"))),
                         checkboxInput("whether_termini_file", "Upload Termini file", value=FALSE),
                         conditionalPanel('input.whether_termini_file==1',
                                          fileInput("termini_data", "please upload .csv/.xlsx file of raw termini data with quantitative intensities of terminis:",
                                                    multiple = FALSE,
                                                    accept = c("text/csv",
                                                               "text/comma-separated-values,text/plain",
-                                                              ".csv", ".xlsx")),
-                                         h4("Annotation tools"),
-                                         uiOutput("termini_idf"),
-                                         uiOutput("termini_seq"),
-                                         numericInput("lseqwindow", 
-                                                      h5("Length of sequence window:"), 
-                                                      value = 1),
-                                         div(dataTableOutput("annotationpreview"), style = "font-size:60%"),
-                                         downloadButton("downloadAnnotation", "Download full annotation"))),
-                        box(
-                            checkboxInput("whether_peptide_file","Upload Peptide file", value=FALSE),
-                            conditionalPanel('input.whether_peptide_file==1',
-                                             fileInput("peptide_data", "please upload .csv/.xlsx file of raw peptide data with quantitative intensities of peptides:",
-                                                       multiple = FALSE,
-                                                       accept = c("text/csv",
-                                                                  "text/comma-separated-values,text/plain",
-                                                                  ".csv", ".xlsx")),
-                                             h4("Protein intensity calculator based on peptide"),
-                                             selectInput("sumform", "Choose method of sum:",choices=c("sum","weighted","top3")),
-                                             div(dataTableOutput("peptidepreview"), style = "font-size:60%"),
-                                             checkboxInput("whether_replace_protein", "Use the dataset calculated from peptides to replace the protein data?", 
-                                                           value=FALSE))
-                        )
+                                                              ".csv", ".xlsx"))),
+                        checkboxInput("whether_peptide_file","Upload Peptide file", value=FALSE),
+                        conditionalPanel('input.whether_peptide_file==1',
+                                         fileInput("peptide_data", "please upload .csv/.xlsx file of raw peptide data with quantitative intensities of peptides:",
+                                                   multiple = FALSE,
+                                                   accept = c("text/csv",
+                                                              "text/comma-separated-values,text/plain",
+                                                              ".csv", ".xlsx")))),
                         
-
+                        box(h4("Meta file input"),
+                            fileInput("meta_data", "please upload .csv/.xlsx file of meta data with only sample names matched with raw data, and corresponding covariates of interest:",
+                                      multiple = FALSE,
+                                      accept = c("text/csv",
+                                                 "text/comma-separated-values,text/plain",
+                                                 ".csv", ".xlsx")),
+                            checkboxInput("whether_replica", "Is there a column indicating replica in the meta data file?", value=FALSE),
+                            conditionalPanel('input.whether_replica==1', 
+                                             uiOutput("replicacol"),
+                                             checkboxInput("whether_average_replica",
+                                                           "Average the intensities across replica?",
+                                                           value=FALSE)
+                                             ),
+                            h4("Proceed the analysis with"),
+                            uiOutput("selectdata")),
+                        
+                        box(h4("Annotation tools"),
+                            conditionalPanel('input.whether_termini_file==1',
+                            uiOutput("termini_idf"),
+                            uiOutput("termini_seq"),
+                            numericInput("lseqwindow", 
+                                         h5("Length of sequence window:"), 
+                                         value = 1),
+                            actionButton("annoButton", "Get annotation"),
+                            div(dataTableOutput("annotationpreview")%>% withSpinner(color="#0dc5c1"), style = "font-size:60%"),
+                            downloadButton("downloadAnnotation", "Download full annotation"))),
+                        
+                        box(h4("Protein intensity calculator based on peptide"),
+                            conditionalPanel('input.whether_peptide_file==1',
+                            selectInput("sumform", "Choose method of sum:",choices=c("sum","weighted","top3")),
+                            actionButton("pepcalButton", "Calculate"),
+                            div(dataTableOutput("peptidepreview")%>% withSpinner(color="#0dc5c1"), style = "font-size:60%"),
+                            checkboxInput("whether_replace_protein", "Use the dataset calculated from peptides to replace the protein data?", 
+                            value=FALSE)))
                         )),
+                
                 tabItem(tabName = "SampleQC",
                         tabBox(title = "QC plots",
                                tabPanel("%CV plots for QC samples",
                                         plotOutput("graph1")),
-                               tabPanel("%CV plots for QC samples stacked bar", 
-                                        plotOutput("graph2")),
                                tabPanel("Distribution of identified proteins",
                                         uiOutput("group"),
                                         plotOutput("graph3")),
@@ -105,27 +118,37 @@ ui <- dashboardPage(
                                                                   "knn",
                                                                   "min"),
                                                      selected = NULL)),
-                        plotOutput("viewviolin")),
+
+                        plotOutput("viewviolin")%>% withSpinner(color="#0dc5c1"),
+                        downloadButton("DownloadProcessedData", "Download")),
                 tabItem(tabName="StatInf",
                         # Equivalence test
                         h4("3.1 Inference on Equivalence"),
                         box(
                             selectInput(inputId = "dd", 
                                     label="Specify the way of testing...", 
-                                    choices = c("By row, test each protein respectively",
-                                                "By column, test all proteins at the same time")),
+                                    choices = c("By column, test all proteins at the same time",
+                                                "By row, test each protein respectively")),
                             numericInput("lowerbound", "Lower bound:", -0.5),
                             numericInput("upperbound", "Upper bound:", 0.5),
                             uiOutput("eqFoI"),
                             uiOutput("eqFoIlevels"),
                             conditionalPanel('input.dd=="By row, test each protein respectively"',
-                            plotOutput("eqtestres1")),
+                            plotOutput("eqtestres1")%>% withSpinner(color="#0dc5c1")),
                             conditionalPanel('input.dd=="By column, test all proteins at the same time"',
                              plotOutput("eqtestres2"))
                         ),
                         # DE tests
                         h4("3.2 Inference on Differential Expression"),
                         box(
+                            checkboxInput(inputId = "whetherstandardDE", 
+                                          "Standardization?", 
+                                          value=FALSE),
+                            #conditionalPanel('input.whetherstandardDE==1',
+                            #                 selectInput(inputId = "standardmethodDE", 
+                            #                             label="Standardization by", 
+                            #                             choices = c("z-score",
+                            #                                         "log2FC over median"))),
                             checkboxInput(inputId = "whetherblock", 
                                       "Blocking", value = FALSE),
                             conditionalPanel('input.whetherblock==1',
@@ -141,8 +164,10 @@ ui <- dashboardPage(
                                                 "t-test"),
                                     selected = NULL),
                             uiOutput("FoI"),
+                            uiOutput("FoIlevels"),
                             h5("Volcano plot of DE testing results"),
-                            plotOutput("volcanoplot"))
+                            plotOutput("volcanoplot")%>% withSpinner(color="#0dc5c1"),
+                            downloadButton("DownloadDEresults","Download significant features"))
                         ),
                 tabItem(tabName = "DR",
                         # Dimensionality Reduction
@@ -185,14 +210,25 @@ ui <- dashboardPage(
 # Define server logic ----
 server <- function(input, output) {
     report_vals <- reactiveValues()
+
+    protein_data<-reactive({
+        req(input$protein_data)
+        if(grepl(".xlsx",input$protein_data$name)){
+            df <- read.xlsx(input$protein_data$datapath)}
+        if (grepl(".csv",input$protein_data$name)){
+            df <- data.frame(read.csv(input$protein_data$datapath, header=TRUE, check.names=FALSE))
+        }
+        df
+    })
+    
     termini_data<-reactive({
         req(input$termini_data)
         if(grepl(".xlsx",input$termini_data$name)){
             df <- read.xlsx(input$termini_data$datapath)}
         if (grepl(".csv",input$termini_data$name)){
-            df <- read.csv(input$termini_data$datapath, header=TRUE)
+            df <- read.csv(input$termini_data$datapath, header=TRUE, check.names=FALSE)
         }
-        df
+        data.frame(df)
     })
     output$termini_idf<-renderUI({
         coln<-colnames(termini_data())
@@ -206,9 +242,9 @@ server <- function(input, output) {
                        label="Select the column of stripped sequence for termini data",
                        choices = coln)
     })
-    annotation_res<-reactive({
-        annotationtool(termini_data()[,input$termini_idf], termini_data()[,input$termini_seq], input$lseqwindow)
-    })
+    annotation_res<-eventReactive(input$annoButton,{
+        annotationtool(termini_data()[,input$termini_idf], termini_data()[,input$termini_seq], input$lseqwindow)}
+    )
     
     output$downloadAnnotation <- downloadHandler(
         filename = function() {
@@ -228,12 +264,13 @@ server <- function(input, output) {
         if(grepl(".xlsx",input$peptide_data$name)){
             df <- read.xlsx(input$peptide_data$datapath)}
         if (grepl(".csv",input$peptide_data$name)){
-            df <- read.csv(input$peptide_data$datapath, header=TRUE)
+            df <- read.csv(input$peptide_data$datapath, header=TRUE, check.names=FALSE)
         }
-        df
+        data.frame(df)
     })
     
-    peptide_based_fixed_data<-reactive({
+    peptide_based_fixed_data<-eventReactive(
+        input$pepcalButton,{
         calIntPep(peptide_data(),input$sumform)
     })
     
@@ -241,29 +278,64 @@ server <- function(input, output) {
         peptide_based_fixed_data()[c(1:20),c(1:6)]
     })
     
-    fixed_data<-reactive({
-        req(input$raw_data)
-        if(grepl(".xlsx",input$raw_data$name)){
-            df <- read.xlsx(input$raw_data$datapath)}
-        if (grepl(".csv",input$raw_data$name)){
-            df <- read.csv(input$raw_data$datapath, header=TRUE)
-        }
-        if(input$whether_replace_protein==FALSE){
-        inputraw(df)}else{
-            peptide_based_fixed_data()
-        }
+
+    output$selectdata<-renderUI({
+        dataset<-c("protein data", "termini data", "peptide data")[c(input$whether_protein_file,input$whether_termini_file,input$whether_peptide_file)]
+        selectInput(inputId = "selectdata", 
+                    label="",
+                    choices=dataset)
     })
     
-    DoE<-reactive({
+    fixed_data0<-reactive({
+        if(input$selectdata=="protein data"){df<-protein_data()}
+        if(input$selectdata=="termini data"){df<-termini_data()}
+        if(input$selectdata=="peptide data"){df<-peptide_data()}
+        df<-inputraw(df)
+        if(input$whether_replace_protein==TRUE){df<-peptide_based_fixed_data()}
+        df
+    })
+    
+    output$replicacol<-renderUI({
+        selectizeInput(inputId = "replicacol",
+                       label="Select the column indicates replica",
+                       choices = colnames(DoE0())[-1])
+    })
+    
+    replica_list<-reactive({
+        validate(need(input$replicacol, ""))
+        df<-cbind(DoE0()[,1],DoE0()[,input$replicacol])
+    })
+    
+    
+    DoE0<-reactive({
         req(input$meta_data)
         if(grepl(".xlsx",input$meta_data$name)){
             df <- read.xlsx(input$meta_data$datapath)}
         if (grepl(".csv",input$meta_data$name)){
-            df <- read.csv(input$meta_data$datapath, header=TRUE)
+            df <- read.csv(input$meta_data$datapath, header=TRUE, check.names=FALSE)
         }
-        setdoe(df, fixed_data())
+        dt<-setdoe(data.frame(df), fixed_data0())
+        dt
+    }) 
+    
+    fixed_data<-reactive({
+        df<-fixed_data0()
+        if(input$whether_average_replica==TRUE){
+            df<-averagereplica(df, replica_list())
+        }
+        data.frame(df)
     })
     
+    DoE<-reactive({
+    dt<-DoE0()
+    if(input$whether_average_replica==TRUE){
+        dt[,1]<-dt[,input$replicacol]
+        dt[,input$replicacol]<-NULL
+        dt<-unique(dt)
+    }
+    dt
+    })
+
     output$group<-renderUI({
         DoE<-DoE()
         selectizeInput(inputId = "group",
@@ -287,7 +359,7 @@ server <- function(input, output) {
         DoE<-DoE()
         selectInput(inputId = "FoI", 
                 label="test the factor of...", 
-                choices = c(colnames(DoE)[apply(DoE, 2, function(x) length(unique(x)))==2]),
+                choices = colnames(DoE)[-1],
                 selected = NULL)
     })
     output$colorfactor<-renderUI({
@@ -299,11 +371,8 @@ server <- function(input, output) {
     })
     
     output$graph1 <- renderPlot({
-        report_vals$cvviolin<-cvplots(fixed_data(),DoE(),1)
+        report_vals$cvviolin<-cvplots(fixed_data(),DoE())
         report_vals$cvviolin})
-    output$graph2 <- renderPlot({
-        report_vals$cvstacked<-cvplots(fixed_data(),DoE(),2)
-        report_vals$cvstacked})
     output$graph3 <- renderPlot({
         report_vals$distprotein<-distIndProtein(fixed_data(),DoE(),input$group)
         report_vals$distprotein})
@@ -317,13 +386,31 @@ server <- function(input, output) {
         report_vals$corplot<-corplot(fixed_data())
         report_vals$corplot})
     
-    react_res_pp<-reactive({preprocessing(fixed_data(), DoE(), input$filterlevel, input$normalization,
-                                              input$whetherimpute, input$imputation)})
-    react_fixed_data<-reactive({react_res_pp()[["data"]]})
+    react_res_pp<-reactive({
+        dt<-preprocessing(fixed_data(), DoE(), input$filterlevel, input$normalization,
+                                              input$whetherimpute, input$imputation)
+        dt
+        })
+    
+    react_fixed_data<-reactive({
+        df<-react_res_pp()[["data"]]
+        df
+        })
     na_index<-reactive({react_res_pp()[["na.index"]]})
     
+    output$DownloadProcessedData <- downloadHandler(
+        filename = function() {
+            paste("ProcessedData", ".csv", sep = "")
+        },
+        content = function(file) {
+            write.csv(react_fixed_data(), file, row.names = FALSE)
+        }
+    )
+    
     output$viewviolin <- renderPlot({
-        report_vals$violinplot<-plotviolin(react_fixed_data())
+        ctitle<-paste0(c("filtered for ",input$filterlevel,"% completeness, median normalization ", input$normalization, 
+                         ", imputation ", input$whetherimpute, " by ", input$imputation), collapse="")
+        report_vals$violinplot<-plotviolin(react_fixed_data(),ctitle)
         report_vals$violinplot
     })
     
@@ -343,25 +430,48 @@ server <- function(input, output) {
                     selected = NULL, multiple=TRUE)
     })
     output$eqtestres1<- renderPlot({
+        validate(need(input$eqFoIlevels[2], "Please select two levels to conduct this test."))
         report_vals$eqtest1<-eqtest.row(react_fixed_data(), DoE(), input$eqFoI, 
                             input$eqFoIlevels[1], input$eqFoIlevels[2], 
                             input$lowerbound, input$upperbound)
         report_vals$eqtest1
     })
     output$eqtestres2<-renderPlot({
+        validate(need(input$eqFoIlevels[2], "Please select two levels to conduct this test."))
         report_vals$eqtest2<-eqtest.all(react_fixed_data(), DoE(), input$eqFoI, 
                             input$eqFoIlevels[1], input$eqFoIlevels[2], 
                             input$lowerbound, input$upperbound)
         report_vals$eqtest2
     })
-    listoutput<-reactive({testingDE(react_fixed_data(), DoE(),input$DEtest, 
-                                    input$FoI, input$whetherblock,input$blockfactor, 
-                                    input$whetherweighting, input$NAweights, na_index())})
+    
+    output$FoIlevels<-renderUI({
+        DoE<-DoE()
+        selectInput(inputId = "FoIlevels", 
+                    label="test the level of...", 
+                    choices = unique(DoE[,input$FoI]),
+                    selected = NULL, multiple=TRUE)
+    })
+    
+    listoutput<-reactive({
+        validate(need(input$FoIlevels[2], "Please select two levels to conduct this test."))
+        testingDE(react_fixed_data(), DoE(),input$DEtest, 
+                                    input$FoI, input$FoIlevels, input$whetherblock,input$blockfactor, 
+                                    input$whetherweighting, input$NAweights, na_index(), input$whetherstandardDE)})
+    
+    output$DownloadDEresults <- downloadHandler(
+        filename = function() {
+            paste("DifferentialExpressionTestResults", ".csv", sep = "")
+        },
+        content = function(file) {
+            write.csv(listoutput()[["DEdf"]], file, row.names = FALSE)
+        }
+    )
 
     output$volcanoplot <- renderPlot({
         report_vals$volcanoplot<-listoutput()[["graph"]]
         report_vals$volcanoplot
     })
+    
     
     output$dimenreduction <- renderPlot({
         if (input$DRrows=="all"){includedrows=c(1:nrow(react_fixed_data()))}else{

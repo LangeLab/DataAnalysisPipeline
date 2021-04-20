@@ -50,16 +50,27 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
   df
 }
 
-testingDE<-function(data,DoE,methodin,FoI,flagblock,blockfactor, flagweight, NAweight, NAind){
+testingDE<-function(data,DoE,methodin,FoI,FoIlevels,flagblock,blockfactor, flagweight, NAweight, NAind,whetherstandardDE){
+if (whetherstandardDE==TRUE){
+  data<-scale(data)
+}
 weight.m<-matrix(1, nrow=nrow(data), ncol=ncol(data))
 colnames(weight.m)<-colnames(data)
    if (flagweight==TRUE){
     data[is.na(data)]<-1
     weight.m[NAind]<-NAweight
-    }
+   }
+
+  samplesin<-DoE[which(DoE[,FoI]%in%FoIlevels),1]
+  data<-data[,samplesin]
+  weight.m<-weight.m[,samplesin]
+  
+  DoE[which(DoE[,FoI]%in%FoIlevels),]
   DoE[,FoI]<-as.factor(DoE[,FoI])
+  
   if (flagblock==FALSE){
   df<-testingDEmethods(data,methodin,FoI,DoE,weight.m)
+  ctitle<-paste0(c("Testing on", FoI," with weighting ", flagweight, " of NA weight=", NAweight, " by ",methodin), collapse="")
   g<-ggplot(df, aes(x=log2FC, y=-log10(pvalue),color=significance,
                  fill=significance, alpha=significance, label=name))+
   geom_point()+
@@ -68,6 +79,7 @@ colnames(weight.m)<-colnames(data)
   geom_hline(yintercept=1.30103, linetype="dashed", color="darkgrey")+
   scale_alpha_manual(values=c(0.2, 1.0)) + 
   scale_color_npg()+
+  ggtitle(ctitle)+
   geom_text_repel(data=filter(df, significance == TRUE & log2FC < 0),
                     force=0.5, nudge_x = 0.5, direction="y",
                     hjust=2,segment.size=0.1,size=3)+

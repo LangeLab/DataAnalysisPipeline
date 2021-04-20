@@ -42,9 +42,18 @@ dat<-impute_data(dat)}else{
 list(data=data.frame(dat),na.index=na.ind)
 }
 
+#aggregatereplica<-function(dat,DoE,replicacol,naind){
+#  dt<-aggregate(t(dat),list(DoE[,replicacol]),mean, na.rm=TRUE)
+#  df<-data.frame(t(dt[,-1]))
+#  colnames(df)<-dt[,1]
+#  m<-matrix(0, ncol=ncol(dat),nrow=nrow(dat))
+#  m[naind]<-1
+#  naind<-which((t(aggregate(t(m),list(DoE[,replicacol]),sum)[,-1]))>0)
+#  return(list(data=df,na.index=naind))
+#}
 
 # violin plot for filtering, normalization and imputation
-plotviolin <- function(data){
+plotviolin <- function(data, custom_title){
   data$Protein<-rownames(data)
   df<-reshape2::melt(data, id.vars="Protein")
   names(df)[names(df) == "variable"] <- "Sample"
@@ -52,7 +61,8 @@ plotviolin <- function(data){
   g<-ggplot(na.omit(df), aes(x = Sample, y = log2(Intensity))) + 
     geom_violin()+
     theme_classic()+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    ggtitle(custom_title)
   return(g)
 }
 
