@@ -403,7 +403,7 @@ server <- function(input, output) {
             paste("ProcessedData", ".csv", sep = "")
         },
         content = function(file) {
-            write.csv(react_fixed_data(), file, row.names = FALSE)
+            write.csv(react_fixed_data(), file, row.names = TRUE)
         }
     )
     
@@ -463,7 +463,7 @@ server <- function(input, output) {
             paste("DifferentialExpressionTestResults", ".csv", sep = "")
         },
         content = function(file) {
-            write.csv(listoutput()[["DEdf"]], file, row.names = FALSE)
+            write.csv(listoutput()[["DEdf"]], file, row.names = TRUE)
         }
     )
 
