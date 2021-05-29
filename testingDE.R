@@ -10,7 +10,7 @@ eb.fit <- function(dat, design, wm){
   fit <- lmFit(dat, design, weights=wm)
   fit.eb <- eBayes(fit)
   log2FC <- fit.eb$coefficients[, 2]
-  p.mod <- fit.eb$p.value[, 2]
+  p.mod <- p.adjust(fit.eb$p.value[, 2],method="fdr")
   results.eb <- data.frame(log2FC, p.mod)
   return(results.eb)
 }
@@ -21,16 +21,19 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
   if (methodin=="limma"){
     design <- model.matrix(~DoE[,FoI])
     res.eb <- eb.fit(log2(data), design, as.matrix(weight.m))
-    pvalues<-res.eb$p.mod
+    pvalues<-p.adjust(res.eb$p.mod,method="BH")
     names<-rownames(data)
     log2FC<-res.eb$log2FC
   }
   if (methodin=="t-test"){
-    data<-na.omit(data)
     pvalues<-numeric(nrow(data))
     log2FC<-numeric(nrow(data))
     i<-1
     for (i in 1:nrow(data)){
+      if(any(is.na(data[i,]))){
+        pvalues[i]<-NA
+        log2FC[i]<-NA
+      }else{
       ds<-reshape2::melt(log2(data[i,]))
       ds[,1]<-as.character(ds[,1])
       ds[,3]<-DoE[match(ds[,1],DoE[,1]),FoI]
@@ -38,6 +41,7 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
       ts<-t.test(formula=intensity~FoI, data=ds)
       log2FC[i]<-diff(ts[["estimate"]])
       pvalues[i]<-p.adjust(ts$p.value,method="BH")
+      }
     }
     names<-rownames(data)
   }
@@ -126,5 +130,5 @@ colnames(weight.m)<-colnames(data)
        labs(y="log2 fold change on block 1",x="log2 fold change on block 2")+theme_classic() 
     }
   }
-  return(list(DEdf=filter(df,significance!="no significance"),graph=g))
+  return(list(DEdf=filter(df,significance!="no significance"),graph=g,alldf=df))
 }

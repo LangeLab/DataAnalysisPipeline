@@ -1,7 +1,6 @@
 # Calculate intensities from peptides
-calIntPep<-function(pepdata, sumform){
-  col.ACC<-1
-  col.sample<-c(2:ncol(pepdata))
+calIntPep<-function(pepdata, sumform, DoE, col.ACC){
+  col.sample<-Doe[,1]
   # grouping by ACC
   pepdata[,col.ACC]<-unlist(lapply(pepdata[,col.ACC], function(x) unlist(strsplit(as.character(x), split=";"))[1]))
   pepdata[pepdata=="NaN"]<-NA
