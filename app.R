@@ -3,6 +3,7 @@ library(shiny)
 library(shinycssloaders)
 library(stringr)
 library(DT)
+library(fBasics)
 source("DataInput.R")
 source("QCplots.R")
 source("Preprocessing.R")
@@ -18,20 +19,20 @@ options(shiny.maxRequestSize=20*1024^2)
 # Define UI ----
 ui <- dashboardPage(
     dashboardHeader(title="Proteomics Data Analysis Pipeline", titleWidth = 350),
-    dashboardSidebar(width = 250,sidebarMenu(
+    dashboardSidebar(width = 275,sidebarMenu(
         menuItem("Input and annotation", tabName = "IA"),
-        menuItem("QC" , tabname = "QC", icon = icon("bacon"),
+        menuItem("Quality Control" , tabname = "QC", icon = icon("bars"),
             menuSubItem("Standard based QC", tabName = "StandardQC"),
             menuSubItem("Sample based QC", tabName = "SampleQC")),
         menuItem("Pre-processing", tabName = "PP"),
         menuItem("Statistical Inference", tabName = "StatInf"),
         menuItem("Dimensionality reduction", tabName = "DR"),
         menuItem("Clustering", tabName = "Clustering"),
-        menuItem("IV",tabname="IV",icon=icon("bars"),
-        menuSubItem("Individual Protein Visualization 1", tabName = "IDV1"),
-        menuSubItem("Individual Protein Visualization 2", tabName = "IDV2"),
-        menuSubItem("Individual Protein Visualization 3", tabName = "IDV3"),
-        menuSubItem("Individual Protein Visualization 4", tabName = "IDV4")),
+        menuItem("Individual Protein Visualization",tabname="IV",icon=icon("bars"),
+        menuSubItem("Boxplot", tabName = "IDV1"),
+        menuSubItem("Correlation plot", tabName = "IDV2"),
+        menuSubItem("Domain structure & annotated PTMs ", tabName = "IDV3"),
+        menuSubItem("Circosplot", tabName = "IDV4")),
         menuItem("Generate a report", tabName="GenerateReport"))),
         dashboardBody(
             tabItems(
@@ -108,16 +109,17 @@ ui <- dashboardPage(
                         )),
                 # Standard QC ----
                 tabItem(tabName = "StandardQC",
-                        box(fileInput("standardQC_data", "please upload .csv/.xlsx file of raw data with quantitative intensities of standard samples:",
+                        box(fileInput("standardQC_meta", "please upload .csv/.xlsx file of meta data for standard samples:",
                             multiple = FALSE,
                             accept = c("text/csv",
                             "text/comma-separated-values,text/plain",
                             ".csv", ".xlsx")),
-                            fileInput("standardQC_meta", "please upload .csv/.xlsx file of meta data for standard samples:",
-                                      multiple = FALSE,
-                                      accept = c("text/csv",
-                                                 "text/comma-separated-values,text/plain",
-                                                 ".csv", ".xlsx"))),
+                            fileInput("standardQC_data", "please upload .csv/.xlsx file of raw data with quantitative intensities of standard samples:",
+                            multiple = FALSE,
+                            accept = c("text/csv",
+                            "text/comma-separated-values,text/plain",
+                            ".csv", ".xlsx"))
+                            ),
                         fluidRow(
                         box(uiOutput("batch_col"),
                             uiOutput("order_col"),
@@ -134,7 +136,12 @@ ui <- dashboardPage(
                 tabItem(tabName = "SampleQC",
                         fluidRow(
                         box(h4("Show the QC graphs of"),
-                            uiOutput("selectdata_QC")),
+                            uiOutput("selectdata_QC"),
+                            br(),
+                            checkboxInput("whethercorrectbatch","Correct the batch effect with the same setting in Standard QC?"),
+                            checkboxInput("whether_average_replica",
+                                          "Average the intensities across replica?",
+                                          value=FALSE)),
                         tabBox(title = "QC plots",
                                tabPanel("%CV plots for QC samples",
                                         plotOutput("graph1")),
@@ -147,11 +154,7 @@ ui <- dashboardPage(
                                tabPanel("Data Completeness",
                                         plotOutput("graph5")),
                                tabPanel("Correlation Plot",
-                                         plotOutput("graph6"))),
-                        box(checkboxInput("whethercorrectbatch","Correct the batch effect with the same setting in Standard QC?"),
-                            checkboxInput("whether_average_replica",
-                                          "Average the intensities across replica?",
-                                          value=FALSE))
+                                         plotOutput("graph6")))
                             #conditionalPanel("input.whethercorrectbatch==1",
                              #                plotOutput("sample_batch_plot"))
                         )),
@@ -487,7 +490,8 @@ server <- function(input, output) {
         if (grepl(".csv",input$standardQC_data$name)){
             df <- read.csv(input$standardQC_data$datapath, header=TRUE, check.names=FALSE)
         }
-        inputraw(data.frame(df),standardQC_meta(),1)
+        aa<-inputraw(data.frame(df),standardQC_meta(),1)
+        aa[["data"]]
     })
     
     output$batch_col<-renderUI({
@@ -537,7 +541,7 @@ server <- function(input, output) {
         dataset<-c("protein data", "termini data", "peptide data", "PTM data")[
             c(input$whether_protein_file,input$whether_termini_file,input$whether_peptide_file, input$whether_PTM_file)]
         selectInput(inputId = "selectdata_QC", 
-                    label="",
+                    label="Select data for QC plots:",
                     choices=dataset)
     })
     
@@ -666,6 +670,13 @@ server <- function(input, output) {
                     plotviolin(aa[["data"]],ctitle)
                 })
         })
+        
+        lapply(available_sets,function(x){
+            output[[paste0("viewsummary_for_",x)]]<-
+                renderPrint({
+                    basicStats(react_data_collection[[x]])
+                })
+        })
         lapply(available_sets, function(x){
             output[[paste0("DownloadProcessedData_for",x)]]<- downloadHandler(
                 filename = function() {
@@ -686,6 +697,8 @@ server <- function(input, output) {
                      uiOutput(paste0("imputation_method_for_",x)),
                      uiOutput(paste0("impute_condition_for_",x)),
                      plotOutput(paste0("viewviolin_for_",x)),
+                     box(width=12,
+                         column(width=12,verbatimTextOutput(paste0("viewsummary_for_",x)),style = "height:500px; overflow-y: scroll;overflow-x: scroll;")),
                      downloadButton(paste0("DownloadProcessedData_for",x),"Download processed data")
             )
         })
@@ -697,7 +710,7 @@ server <- function(input, output) {
         dataset<-c("protein data", "termini data", "peptide data", "PTM data")[
             c(input$whether_protein_file,input$whether_termini_file,input$whether_peptide_file, input$whether_PTM_file)]
         selectInput(inputId = "selectdata_SI", 
-                    label="",
+                    label="Select data for statistical inference:",
                     choices=dataset)
     })
     # equivalence test FoI and FoI levels
@@ -785,7 +798,7 @@ server <- function(input, output) {
         dataset<-c("protein data", "termini data", "peptide data", "PTM data")[
             c(input$whether_protein_file,input$whether_termini_file,input$whether_peptide_file, input$whether_PTM_file)]
         selectInput(inputId = "selectdata_DR", 
-                    label="",
+                    label="Select data for dimensionality reduction:",
                     choices=dataset)
     })
     
@@ -802,7 +815,7 @@ server <- function(input, output) {
         dataset<-c("protein data", "termini data", "peptide data", "PTM data")[
             c(input$whether_protein_file,input$whether_termini_file,input$whether_peptide_file, input$whether_PTM_file)]
         selectInput(inputId = "selectdata_cluster", 
-                    label="",
+                    label="Select data for clustering:",
                     choices=dataset)
     })
     
@@ -823,7 +836,7 @@ server <- function(input, output) {
         dataset<-c("protein data", "termini data", "peptide data", "PTM data")[
             c(input$whether_protein_file,input$whether_termini_file,input$whether_peptide_file, input$whether_PTM_file)]
         selectInput(inputId = "selectdata_IDV", 
-                    label="Select dataset:",
+                    label="Select dataset for individual protein visualization (valid for boxplot and corrplot):",
                     choices=dataset)
     })
 
@@ -890,7 +903,8 @@ server <- function(input, output) {
     })
     
     output$IDVseperate_panel<-renderUI({
-        validate(need((input$selectdata_IDV=="protein data")&(!is.null(data_collection()[["PTM data"]])),"This function is valid only when protein data selected and PTM data available."))
+        validate(need((input$selectdata_IDV=="protein data")&(!is.null(data_collection()[["PTM data"]])),
+                      "This function is valid only when protein data selected previously and PTM data available."))
         available_proteins<-rows_include()
         lapply(available_proteins,function(x){
             output[[paste0("CLG_for_",x)]]<-renderUI(
