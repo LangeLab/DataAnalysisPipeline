@@ -15,7 +15,7 @@ cvplots<-function(fixed_data, DoE){
               label = round(median(cvs), digits = 1), vjust = -0.8, hjust = -0.2,color = "red", size = 3.5) + 
     labs(y = "", x = "%CV") + coord_flip() + theme_classic()
 
-  temp.df <- data.frame(protein = "Protein Groups", CV = cvs, number = 1)
+  temp.df <- data.frame(protein = "Groups", CV = cvs, number = 1)
   temp.df <- temp.df %>% mutate(range = case_when(CV < 10 ~ "<10%", 
                                                   (CV > 10) & (CV < 20) ~ "10%~20%", 
                                                   (CV > 20) & (CV < 50) ~ "20%~50%", 
@@ -24,14 +24,14 @@ cvplots<-function(fixed_data, DoE){
   g2<-ggplot(temp.df, aes(x = protein, y = number, fill = range)) +
     geom_bar(position = "stack", stat = "identity", width = 0.5) + 
     scale_fill_npg() +
-    labs(y = "Numbers of protein",x = "", fill = "%CV") + theme_classic()
+    labs(y = "Numbers of available rows",x = "", fill = "%CV") + theme_classic()
   g1+g2
 }
 
 distIndProtein<-function(fixed_data, DoE, group){
   num.proteins<-apply(fixed_data, 2, function(x) sum(!is.na(x)))
-  temp.df<-data.frame(number.protein=num.proteins, sample=colnames(fixed_data),condition=DoE[match(colnames(fixed_data),DoE[,1]),group])
-  ggbarplot(temp.df, x="sample",y= "number.protein",
+  temp.df<-data.frame(number.row=num.proteins, sample=colnames(fixed_data),condition=DoE[match(colnames(fixed_data),DoE[,1]),group])
+  ggbarplot(temp.df, x="sample",y= "number.row",
             fill = "condition",               # change fill color by condition
             color = "white",            # Set bar border colors to white
             palette = "jco",            # jco journal color palett. see ?ggpar
@@ -41,7 +41,7 @@ distIndProtein<-function(fixed_data, DoE, group){
             ggtheme = theme_pubclean()
   )+
     font("x.text", size = 8, vjust = 0.5)+
-    ggtitle("Number of available proteins per sample, colored by condition")
+    ggtitle("Number of available rows per sample, colored by condition")
 }
 
 upsetplot<-function(fixed_data, DoE, group){
@@ -60,7 +60,7 @@ datacompleteness<-function(fixed_data, DoE){
   percent.samples<-apply(fixed_data, 1, function(x) sum(!is.na(x))/ncol(fixed_data))
   percent.samples<-percent.samples[order(percent.samples,decreasing=TRUE)]
   temp.df<-data.frame(protein=1:nrow(fixed_data),datacompleteness=percent.samples)
-  ggplot(temp.df,aes(protein,datacompleteness))+geom_point()+labs(y="Data Completeness",x="Unique Protein")+
+  ggplot(temp.df,aes(protein,datacompleteness))+geom_point()+labs(y="Data Completeness",x="Unique feature")+
   geom_hline(yintercept=0.99, linetype="dashed", color = "red")+
   annotate("text", nrow(temp.df), 0.99, vjust = -0.5, label = "99%", color="red")+
   geom_hline(yintercept=0.9, linetype="dashed", color = "red")+

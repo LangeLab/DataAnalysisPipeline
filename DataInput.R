@@ -31,10 +31,11 @@ for (i in 1:nrow(fixed_data)){
 }
 if(length(ind)!=0){
   fixed_data <- fixed_data[-ind, ]
+  raw_data<-raw_data[-ind,]
 }
 
 ind.tf<-(!(colnames(raw_data)%in%DoE[,1]))
-return(list(data=data.frame(fixed_data), other_annotation=cbind(rownames(fixed_data),data.frame(raw_data[,ind.tf]))))
+return(list(data=data.frame(fixed_data), other_annotation=cbind(rownames(raw_data),data.frame(raw_data[,ind.tf]))))
 }
 
 

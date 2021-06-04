@@ -3,6 +3,7 @@ library(reshape2)
 library(corrplot)
 library(dplyr)
 library(patchwork)
+library(drawProteins)
 IDV_plot<-function(data){
   data$name<-rownames(data)
   df<-melt(data,id.vars="name",variable.name="sample",value.name="intensity")
@@ -27,24 +28,27 @@ corrplot_customize<-function(data, corr_sign, p_threshold, order, ncluster, colo
 }
 
 combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, col_position, modificationType){
+  if(length(ind)==0){return()}
   sub.PTM.data<-PTM.data.ls[["data"]][ind,]
   anno.PTM<-PTM.data.ls[["other_annotation"]][ind,c(proteinACC, col_position, modificationType)]
-  df<-melt(cbind(sub.PTM.data, anno.PTM))
+  colnames(anno.PTM)<-c("proteinACC","position","modificationtype")
+  anno.PTM$position<-as.numeric(anno.PTM$position)
+  df<-melt(cbind(sub.PTM.data, anno.PTM),measure.vars=colnames(sub.PTM.data))
   g1<-ggplot(df, aes(x=position, y=log10(value))) +
       geom_segment(aes(x=position, xend=position, y=0, yend=log10(value))) +
-      geom_point(size=4, alpha=0.6)+facet_wrap(~modificationType,strip.position = "left")+theme_bw()
+      geom_point(size=4, alpha=0.6,aes(color=factor(variable)))+facet_wrap(~modificationtype,strip.position = "left")+theme_bw()+ theme(legend.position="bottom")
   
   prot_data <- get_features(selected_protein)
   prot_data <- feature_to_dataframe(prot_data)
   p <- draw_canvas(prot_data)
-  p <- draw_chains(p, prot_data)
+  p <- draw_chains(p, prot_data,size=0.5)
   p <- draw_domains(p, prot_data)
   p <- draw_repeat(p, prot_data)
   p <- draw_motif(p, prot_data)
-  p <- draw_phospho(p, prot_data, size = 8)
+  p <- draw_phospho(p, prot_data, size = 5)
   
   # background and y-axis
-  p <- p + theme_bw(base_size = 20) + # white backgnd & change text size
+  p <- p + theme_bw(base_size = 10) + # white backgnd & change text size
     theme(panel.grid.minor=element_blank(),
           panel.grid.major=element_blank()) +
     theme(axis.ticks = element_blank(),
@@ -55,10 +59,10 @@ combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, co
   rel_subtitle <- paste0("circles = phosphorylation sites\n",
                          "RHD = Rel Homology Domain\nsource:Uniprot")
   
-  p <- p + labs(title = paste0("Schematic of protein", selected_proteins[1]),
+  p <- p + labs(title = paste0("Schematic of protein", selected_protein),
                 subtitle = rel_subtitle)
   g2<-p
-  return(g1+g2+plot_layout(nrow = 2))
+  return(g1+g2+plot_layout(nrow = 2,heights=c(2,1)))
 }
 
 library(dplyr)
@@ -71,6 +75,7 @@ circosplot.fun<-function(SIoutput.ls,dat.ls,proteinACC,ds.included){
   for(i in c("protein data",ds.included)){
     df<-rbind(df, cbind(SIoutput.ls[[i]][["alldf"]],type=i))
   }
+  df<-na.omit(df)
   
   df<- df %>% mutate(change=case_when(
     log2FC<(-0.5) ~ "down", 
@@ -94,6 +99,7 @@ circosplot.fun<-function(SIoutput.ls,dat.ls,proteinACC,ds.included){
     anno<-data.frame(cbind(anno[,1],anno[,proteinACC[i]]))
     colnames(anno)<-c("name","proteinACC")
     anno<-anno[anno$proteinACC %in% df$name,]
+    anno<-anno[anno$name %in% df$name,]
     connection_df<-rbind(connection_df, cbind(anno,type=i,color=colorscheme[which(ds.included==i)]))
   }
   j<-1

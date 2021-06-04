@@ -295,7 +295,9 @@ ui <- dashboardPage(
             ),
             tabItem(tabName="IDV4",
                     uiOutput("selectdata_circos"),
-                    textInput("groupproACC", "Specify column names of protein accession (separate by comma)", value = ""),
+                    uiOutput("selectcol_proteinACC_termini"),
+                    uiOutput("selectcol_proteinACC_peptide"),
+                    uiOutput("selectcol_proteinACC_PTM"),
                     fluidRow(box(plotOutput("circosplot")))
             ),
                 # generate report ----
@@ -332,10 +334,10 @@ server <- function(input, output) {
     
     PTM_data<-reactive({
         req(input$PTM_data)
-        if(grepl(".xlsx",input$termini_data$name)){
-            df <- read.xlsx(input$termini_data$datapath)}
-        if (grepl(".csv",input$termini_data$name)){
-            df <- read.csv(input$termini_data$datapath, header=TRUE, check.names=FALSE)
+        if(grepl(".xlsx",input$PTM_data$name)){
+            df <- read.xlsx(input$PTM_data$datapath)}
+        if (grepl(".csv",input$PTM_data$name)){
+            df <- read.csv(input$PTM_data$datapath, header=TRUE, check.names=FALSE)
         }
         data.frame(df)
     })
@@ -907,18 +909,18 @@ server <- function(input, output) {
                       "This function is valid only when protein data selected previously and PTM data available."))
         available_proteins<-rows_include()
         lapply(available_proteins,function(x){
-            output[[paste0("CLG_for_",x)]]<-renderUI(
-                    if (length(data_collection()[["PTM data"]]$other_annotation[input$proteinACC,]==x)==0){
-                        renderText("No PTM proteing groups match this protein selected")
-                    }else{
-                       ind<-which(data_collection()[["PTM data"]]$other_annotation[,input$proteinACC]==x)
-                       renderPlot(combined_lolipop_plot(x, data_collection()[["PTM data"]],ind, input$proteinACC,input$col_position,input$modificationType)
-                            )}
-                )
+            output[[paste0("CLG_for_",x)]]<-renderPlot({
+                 # data_collection()[["PTM data"]][["other_annotation"]][,input$proteinACC]
+                 #if (length(which(data_collection()[["PTM data"]][["other_annotation"]][,input$proteinACC]==x))==0){
+                 #    o<-renderText("No PTM protein groups match this protein selected")
+                 #}else{
+                ind<-which(data_collection()[["PTM data"]][["other_annotation"]][,input$proteinACC]==x)
+                combined_lolipop_plot(x, data_collection()[["PTM data"]],ind, input$proteinACC,input$col_position,input$modificationType)
+                })
         })
         myTabs = lapply(available_proteins, function(x){
             tabPanel(title=x, 
-                     uiOutput(paste0("CLG_for_",x)))
+                     fluidRow(box(plotOutput(paste0("CLG_for_",x)))))
             })
         do.call(tabsetPanel, myTabs)        
     })
@@ -930,12 +932,31 @@ server <- function(input, output) {
             choices = dataset)
     })
     
+    output$selectcol_proteinACC_termini<-renderUI({
+        validate(need("termini data" %in% input$selectdata_circos,""))
+        selectInput("selectcol_proteinACCs_termini",
+                           "please select column of protein groups:",
+                           choices = colnames(data_collection()[["termini data"]][["other_annotation"]])[-1])
+    })
+    output$selectcol_proteinACC_peptide<-renderUI({
+        validate(need("peptide data" %in% input$selectdata_circos,""))
+        selectInput("selectcol_proteinACCs_peptide",
+                    "please select column of protein groups:",
+                    choices = colnames(data_collection()[["peptide data"]][["other_annotation"]])[-1])
+    })
+    output$selectcol_proteinACC_PTM<-renderUI({
+        validate(need("PTM data" %in% input$selectdata_circos,""))
+        selectInput("selectcol_proteinACCs_PTM",
+                    "please select dataset for circosplot:",
+                    choices = colnames(data_collection()[["PTM data"]][["other_annotation"]])[-1])
+    })
+    
     output$circosplot<-renderPlot({
-        validate(need(input$groupproACC,""))
-        dataset<-c("termini data", "peptide data", "PTM data")[input$selectdata_circos]
-        proteinACC<-unlist(strsplit(input$groupproACC,","))
-        names(proteinACC)<-dataset
-        circosplot.fun(listoutput,data_collection(),proteinACC,dataset)
+        validate(need(input$selectdata_circos,""))
+        proteinACC<-c(input$selectcol_proteinACCs_termini, input$selectcol_proteinACCs_peptide, input$selectcol_proteinACCs_PTM)
+        names(proteinACC)<-input$selectdata_circos
+        aa<-circosplot.fun(listoutput,data_collection(),proteinACC,input$selectdata_circos)
+        aa
     })
     
     # report generate ----

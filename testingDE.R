@@ -20,7 +20,7 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
   DoE<-DoE[ind,]
   if (methodin=="limma"){
     design <- model.matrix(~DoE[,FoI])
-    res.eb <- eb.fit(log2(data), design, as.matrix(weight.m))
+    res.eb <- eb.fit(data, design, as.matrix(weight.m))
     pvalues<-p.adjust(res.eb$p.mod,method="BH")
     names<-rownames(data)
     log2FC<-res.eb$log2FC
@@ -34,7 +34,7 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
         pvalues[i]<-NA
         log2FC[i]<-NA
       }else{
-      ds<-reshape2::melt(log2(data[i,]))
+      ds<-reshape2::melt(data[i,])
       ds[,1]<-as.character(ds[,1])
       ds[,3]<-DoE[match(ds[,1],DoE[,1]),FoI]
       colnames(ds)<-c("sample","intensity","FoI")
@@ -57,6 +57,8 @@ testingDEmethods<-function(data,methodin,FoI,DoE,weight.m){
 testingDE<-function(data,DoE,methodin,FoI,FoIlevels,flagblock,blockfactor, flagweight, NAweight, NAind,whetherstandardDE){
 if (whetherstandardDE==TRUE){
   data<-scale(data)
+}else{
+  data<-log2(data)
 }
 weight.m<-matrix(1, nrow=nrow(data), ncol=ncol(data))
 colnames(weight.m)<-colnames(data)
@@ -68,8 +70,7 @@ colnames(weight.m)<-colnames(data)
   samplesin<-DoE[which(DoE[,FoI]%in%FoIlevels),1]
   data<-data[,samplesin]
   weight.m<-weight.m[,samplesin]
-  
-  DoE[which(DoE[,FoI]%in%FoIlevels),]
+  DoE<-DoE[which(DoE[,FoI]%in%FoIlevels),]
   DoE[,FoI]<-as.factor(DoE[,FoI])
   
   if (flagblock==FALSE){
@@ -84,10 +85,10 @@ colnames(weight.m)<-colnames(data)
   scale_alpha_manual(values=c(0.2, 1.0)) + 
   scale_color_npg()+
   ggtitle(ctitle)+
-  geom_text_repel(data=filter(df, significance == TRUE & log2FC < 0),
+  geom_text_repel(data=dplyr::filter(df, significance == TRUE & log2FC < 0),
                     force=0.5, nudge_x = 0.5, direction="y",
                     hjust=2,segment.size=0.1,size=3)+
-  geom_text_repel(data=filter(df, significance == TRUE & log2FC > 0),
+  geom_text_repel(data=dplyr::filter(df, significance == TRUE & log2FC > 0),
                    force=0.5, nudge_x = 2, direction="y",
                    hjust=0,segment.size=0.1,size=3)+
   labs(x=paste0("log2 fold change of ", FoI,": ",levels(DoE[,FoI])[2]," over ", levels(DoE[,FoI])[1]))+
@@ -121,14 +122,14 @@ colnames(weight.m)<-colnames(data)
        geom_hline(yintercept=-1, linetype="dashed", color="darkgrey")+
        scale_alpha_manual(values=c(1.0, 1.0, 1.0, 0.2)) + 
        scale_color_npg()+
-       geom_text_repel(data=filter(df, significance == "significance in both blocks" & log2FC1 < 0),
+       geom_text_repel(data=dplyr::filter(df, significance == "significance in both blocks" & log2FC1 < 0),
                        force=0.5, nudge_x = 0.5, direction="y",
                        hjust=2,segment.size=0.1,size=3)+
-       geom_text_repel(data=filter(df, significance == "significance in both blocks" & log2FC1 > 0),
+       geom_text_repel(data=dplyr::filter(df, significance == "significance in both blocks" & log2FC1 > 0),
                        force=0.5, nudge_x = 2, direction="y",
                        hjust=0,segment.size=0.1,size=3)+
        labs(y="log2 fold change on block 1",x="log2 fold change on block 2")+theme_classic() 
     }
   }
-  return(list(DEdf=filter(df,significance!="no significance"),graph=g,alldf=df))
+  return(list(DEdf=dplyr::filter(df,significance!="no significance"),graph=g,alldf=df))
 }
