@@ -10,7 +10,7 @@ cvplots<-function(fixed_data, DoE){
   cvs <- apply(na.omit(fixed_data), 1, function(x) (sd(x, na.rm = TRUE)/mean(x, na.rm = TRUE)) * 100)
   g1<-ggplot(data.frame(name = "CV", CV = cvs), aes(x = CV, y = name)) + 
     geom_violin() + 
-    geom_vline(xintercept = mean(cvs), color = "red", linetype = "dashed") + 
+    geom_vline(xintercept = median(cvs,na.rm=TRUE), color = "red", linetype = "dashed") + 
     geom_text(data = data.frame(x = median(cvs),y = 0), aes(x, y), 
               label = round(median(cvs), digits = 1), vjust = -0.8, hjust = -0.2,color = "red", size = 3.5) + 
     labs(y = "", x = "%CV") + coord_flip() + theme_classic()
