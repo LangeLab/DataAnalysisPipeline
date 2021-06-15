@@ -4,14 +4,16 @@ library(corrplot)
 library(dplyr)
 library(patchwork)
 library(drawProteins)
-IDV_plot<-function(data){
+IDV_plot<-function(data,facet_factor,DoE){
   data$name<-rownames(data)
   df<-melt(data,id.vars="name",variable.name="sample",value.name="intensity")
-  g<-ggplot(df,aes(y=name,x=log2(intensity)))+geom_boxplot()+geom_point(aes(color=factor(sample)))
+  df<-df %>% mutate(group=factor(DoE[match(sample,DoE[,1]),facet_factor]))
+  g<-ggplot(df,aes(y=name,x=log2(intensity)))+geom_boxplot()+geom_point(aes(color=factor(sample)))+
+    facet_wrap(~group,strip.position = "left",ncol=1)
   return(g)
 }
 
-corrplot_customize<-function(data, corr_sign, p_threshold, order, ncluster, colorscheme){
+corrplot_customize<-function(data,order, p_threshold=NULL, ncluster=NULL, colorscheme){
   if (colorscheme=="red-white-blue"){colorscheme.val<-colorRampPalette(c("blue", "white", "red"))(100)}
   if (colorscheme=="heat"){colorscheme.val<-heat.colors(100)[c(100:1)]}
   if (colorscheme=="cm"){colorscheme.val<-cm.colors(100)}
@@ -22,9 +24,13 @@ corrplot_customize<-function(data, corr_sign, p_threshold, order, ncluster, colo
       M<-M[-which(rownames(M)==i),-which(rownames(M)==i)]}
   }
   res1 <- cor.mtest(M, conf.level = .95)
+  if(order=="test"){
   corrplot(M, type = "lower",p.mat = res1$p , insig = "label_sig",
-                sig.level = p_threshold, order = "hclust",addrect = ncluster,
+                sig.level = p_threshold, 
                 pch.cex = .9, pch.col = "white",addgrid.col = NA, tl.col = "black", tl.srt = 45,tl.cex = 0.5,col=colorscheme.val)
+  }else{
+    corrplot(M,order = "hclust",addrect = ncluster,tl.col = "black", tl.srt = 45,tl.cex = 0.5, col=colorscheme.val)
+  }
 }
 
 combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, col_position, modificationType){
@@ -35,9 +41,9 @@ combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, co
   anno.PTM$position<-as.numeric(anno.PTM$position)
   df<-melt(cbind(sub.PTM.data, anno.PTM),measure.vars=colnames(sub.PTM.data))
   g1<-ggplot(df, aes(x=position, y=log10(value))) +
+      geom_point(size=4, alpha=0.6)+
       geom_segment(aes(x=position, xend=position, y=0, yend=log10(value))) +
-      geom_point(size=4, alpha=0.6,aes(color=factor(variable)))+facet_wrap(~modificationtype,strip.position = "left")+theme_bw()+ theme(legend.position="bottom")
-  
+      facet_wrap(~modificationtype,strip.position = "left")+theme_bw()
   prot_data <- get_features(selected_protein)
   prot_data <- feature_to_dataframe(prot_data)
   p <- draw_canvas(prot_data)
@@ -48,7 +54,7 @@ combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, co
   p <- draw_phospho(p, prot_data, size = 5)
   
   # background and y-axis
-  p <- p + theme_bw(base_size = 10) + # white backgnd & change text size
+  p <- p + theme_bw(base_size = 7.5) + # white backgnd & change text size
     theme(panel.grid.minor=element_blank(),
           panel.grid.major=element_blank()) +
     theme(axis.ticks = element_blank(),
@@ -56,11 +62,9 @@ combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, co
     theme(panel.border = element_blank())
   
   # add titles
-  rel_subtitle <- paste0("circles = phosphorylation sites\n",
-                         "RHD = Rel Homology Domain\nsource:Uniprot")
-  
-  p <- p + labs(title = paste0("Schematic of protein", selected_protein),
-                subtitle = rel_subtitle)
+  #rel_subtitle <- paste0("circles = phosphorylation sites\n",
+  #                       "RHD = Rel Homology Domain\nsource:Uniprot")
+
   g2<-p
   return(g1+g2+plot_layout(nrow = 2,heights=c(2,1)))
 }

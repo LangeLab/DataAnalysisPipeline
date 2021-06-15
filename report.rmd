@@ -1,21 +1,43 @@
 ---
-title: "Report by"
 output: html_document
 params:
   imported: NA
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+---
+title: `r params$imported$title`
+---
+
+Description: `r params$imported$description`
+
+
+## 0 Standard QC plots for batch effect
+
+- sample mean line graph, boxplot, and PCA graph
+- hierarchical clustering on batch effect
+- heatmap on batch effect
+
+```{r}
+library(gridExtra)
+if (!is.null(params$imported$QCeffectPlott)){
+grid.arrange(grobs=params$imported$QCeffectPlot[["plot"]])
+params$imported$QCeffectPlot[["clustering"]]
+params$imported$QCeffectPlot[["heatmap"]]}
+```
+
 ## 1 Sample-based quality control plots
+
 - %CV violin plot
 - %CV stacked bar chart
 - Bar chart of # available proteins in each sample, colored by group
 - Upset plot shows overlap of available proteins across groups
 - Data completeness
-- Pearson and Speerman correlation plot
+- Pearson and Spearman correlation plot
 
 ```{r}
 params$imported$cvviolin
@@ -28,21 +50,16 @@ params$imported$corplot
 
 ## 2 Pre-processing
 Violin plot of protein intensities of all samples after pre-processing steps.
-
 ```{r}
-params$imported$violinplot
+printprocessing<-function(x){
+  print(paste0("Displaying violin plot and summary for ", x))
+  params$imported[[paste0("viewviolin_for_",x)]]
+  params$imported[[paste0("viewsummary_for_",x)]]
+}
+lapply(params$imported$available_sets, printprocessing)
 ```
 
 ## 3 Statistical inference
-### 3.1 Equivalence test
-```{r}
-if (exists("eqtest1", params$imported)){
-  params$imported$eqtest1}
-if (exists("eqtest2", params$imported)){
-  params$imported$eqtest2}
-```
-
-### 3.2 Differential expression test
 Volcano plot of differential expression tests. 
 ```{r}
 params$imported$volcanoplot
@@ -56,6 +73,30 @@ params$imported$dmr
 ## 5 Clustering
 ```{r}
 params$imported$clustering
+```
+
+## 6 Individual Protein Visualization
+- boxplot of feature you chose
+```{r}
+params$imported$IDV_boxplot
+```
+
+- correlation plot between features
+```{r}
+params$imported$IDV_corrplot
+params$imported$IDV_corrtable
+```
+
+- protein structure plot
+```{r}
+ind<-names(params$imported)[grep("CLG_for_",names(params$imported))]
+if (length(ind)>0){
+lapply(ind, function(x) params$imported[[x]])}
+```
+
+- circosplot
+```{r}
+params$imported$circosplot
 ```
 
 # Reference 

@@ -13,7 +13,7 @@ dimen.reduce<-function(data, DoE, method, colorfactor, tSNEper=NULL, rows){
     m<-log2(t(na.omit(data)))
     res.pca <- prcomp(m,scale. = TRUE)
     g<-fviz_pca_ind(res.pca,
-                 geom="point", palette="npg",
+                 geom=c("point","text"), palette="npg",
                  habillage= DoE[,colorfactor], # color by groups
                  addEllipses = TRUE, # Concentration ellipses
                  repel = FALSE

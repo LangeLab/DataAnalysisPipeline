@@ -265,6 +265,7 @@ ui <- dashboardPage(
                                     choices=c("significant in differential expression",
                                               "specify below...")),
                         uiOutput("proteingroupID"),
+                        uiOutput("facet_factor"),
                         fluidRow(
                         box(width=12,
                             column(width=6,
@@ -273,12 +274,12 @@ ui <- dashboardPage(
                                 plotOutput("IDV_boxplot"))))
                         ),
                 tabItem(tabName="IDV2",
-                        selectInput("corr_sign",label="Please select the correlation sign you want to include",
-                                                    choices=c("+","-","both")),
-                        numericInput("p_threshold", "Please specify p-value threshold",value=0.05),
-                        selectInput("corrorder","Please specify the order of rows in correlation plot",
-                                                    choices=c("hclust","none")),
-                        numericInput("ncluster","Please specify the number of clusters",value=3),
+                        selectInput("corrorder","Please specify the type of correlation plot",
+                                    choices=c("hclust","test")),
+                        conditionalPanel('input.corrorder=="test"',
+                                         numericInput("p_threshold", "Please specify p-value threshold",value=0.05)),
+                        conditionalPanel('input.corrorder=="hclust"',
+                                         numericInput("ncluster","Please specify the number of clusters",value=3)),
                         selectInput("colorscheme","Please specify the color scheme",
                                                     choices=c("red-white-blue","heat","cm")),
                         fluidRow(
@@ -291,7 +292,7 @@ ui <- dashboardPage(
                     uiOutput("col_position"),
                     uiOutput("modificationType"),
                     fluidRow(
-                    uiOutput("IDVseperate_panel"))
+                    box(uiOutput("IDVseperate_panel")))
             ),
             tabItem(tabName="IDV4",
                     uiOutput("selectdata_circos"),
@@ -310,7 +311,29 @@ ui <- dashboardPage(
 )
 # Define server logic ----
 server <- function(input, output) {
-    report_vals <- reactiveValues()
+    report_vals <- reactiveValues(
+        QCeffectPlot=NULL,
+        cvviolin=NULL,
+        distprotein=NULL,
+        upset=NULL,
+        datacompleteness=NULL,
+        corplot=NULL,
+        available_sets=NULL,
+        "viewviolin_for_protein data"=NULL,
+        "viewsummary_for_protein data"=NULL,
+        "viewviolin_for_termini data"=NULL,
+        "viewsummary_for_termini data"=NULL,
+        "viewviolin_for_peptide data"=NULL,
+        "viewsummary_for_peptide data"=NULL,
+        "viewviolin_for_PTM data"=NULL,
+        "viewsummary_for_PTM data"=NULL,
+        volcanoplot=NULL,
+        dmr=NULL,
+        clustering=NULL,
+        IDV_boxplot=NULL,
+        IDV_corrplot=NULL,
+        IDV_corrtable=NULL,
+        circosplot=NULL)
     # Data input ----
     protein_data<-reactive({
         req(input$protein_data)
@@ -518,8 +541,9 @@ server <- function(input, output) {
     
     standardQCoutput<-eventReactive(
         input$standar_batcheffectdButton,{
-        QCeffectPlot(standardQC_data(),standardQC_meta(),input$batch_col,
+        report_vals$QCeffectPlot<-QCeffectPlot(standardQC_data(),standardQC_meta(),input$batch_col,
                      input$order_col, input$factor_cols, input$correctmethod)
+        report_vals$QCeffectPlot
         })
     
     output$standard_batcheffectplots <- renderPlot({
@@ -585,6 +609,7 @@ server <- function(input, output) {
     react_na_index<-reactiveValues()
     output$preprocessing_panel<-renderUI({
         available_sets<-names(data_collection())
+        report_vals$available_sets<-available_sets
         cc<-c("No normalization",
               "median randomization",
               "normalization over same protein and samples under same condition",
@@ -669,14 +694,16 @@ server <- function(input, output) {
                                       input[[paste0("protein_anno_for_",x)]])
                     react_data_collection[[x]]<-aa[["data"]]
                     react_na_index[[x]]<-aa[["na.index"]]
-                    plotviolin(aa[["data"]],ctitle)
+                    report_vals[[paste0("viewviolin_for_",x)]]<-plotviolin(aa[["data"]],ctitle)
+                    report_vals[[paste0("viewviolin_for_",x)]]
                 })
         })
         
         lapply(available_sets,function(x){
             output[[paste0("viewsummary_for_",x)]]<-
                 renderPrint({
-                    basicStats(react_data_collection[[x]])
+                    report_vals[[paste0("viewsummary_for_",x)]]<-basicStats(react_data_collection[[x]])
+                    report_vals[[paste0("viewsummary_for_",x)]]
                 })
         })
         lapply(available_sets, function(x){
@@ -860,19 +887,27 @@ server <- function(input, output) {
         options = list(paging=FALSE)
         react_data_collection[[input$selectdata_IDV]][rows_include(),]
     })
+    
+    output$facet_factor<-renderUI({
+        selectizeInput(inputId = "facet_factor",
+                       label="Select the faceting variable in the boxplot:",
+                       choices = colnames(DoE0())[-1])
+    })
+    
     output$IDV_boxplot<-renderPlot({
         validate(need(rows_include(),""))
-        IDV_plot(react_data_collection[[input$selectdata_IDV]][rows_include(),])
+        report_vals$IDV_boxplot<-IDV_plot(react_data_collection[[input$selectdata_IDV]][rows_include(),],input$facet_factor,DoE())
+        report_vals$IDV_boxplot
     })
     
     output$IDV_corrplot<-renderPlot({
         validate(need(rows_include(),""))
-        do.call(corrplot_customize,list(data=react_data_collection[[input$selectdata_IDV]][rows_include(),], 
-                                        corr_sign=input$corr_sign, 
-                                        p_threshold=input$p_threshold, 
+        report_vals$IDV_corrplot<-do.call(corrplot_customize,list(data=react_data_collection[[input$selectdata_IDV]][rows_include(),],
                                         order=input$corrorder, 
+                                        p_threshold=input$p_threshold, 
                                         ncluster=input$ncluster, 
                                         colorscheme=input$colorscheme))
+        report_vals$IDV_corrplot
     })
     
     output$IDV_corrtable<-DT::renderDataTable({
@@ -885,6 +920,7 @@ server <- function(input, output) {
             if (sum(!is.na(M[,i]))<2){
                 M<-M[-which(rownames(M)==i),-which(rownames(M)==i)]}
         }
+        report_vals$IDV_corrtable<-M
         M
     })
     
@@ -915,12 +951,13 @@ server <- function(input, output) {
                  #    o<-renderText("No PTM protein groups match this protein selected")
                  #}else{
                 ind<-which(data_collection()[["PTM data"]][["other_annotation"]][,input$proteinACC]==x)
-                combined_lolipop_plot(x, data_collection()[["PTM data"]],ind, input$proteinACC,input$col_position,input$modificationType)
-                })
+                report_vals[[paste0("CLG_for_",x)]]<-combined_lolipop_plot(x, data_collection()[["PTM data"]],ind, input$proteinACC,input$col_position,input$modificationType)
+                report_vals[[paste0("CLG_for_",x)]]    
+            })
         })
         myTabs = lapply(available_proteins, function(x){
             tabPanel(title=x, 
-                     fluidRow(box(plotOutput(paste0("CLG_for_",x)))))
+                     plotOutput(paste0("CLG_for_",x)))
             })
         do.call(tabsetPanel, myTabs)        
     })
@@ -947,7 +984,7 @@ server <- function(input, output) {
     output$selectcol_proteinACC_PTM<-renderUI({
         validate(need("PTM data" %in% input$selectdata_circos,""))
         selectInput("selectcol_proteinACCs_PTM",
-                    "please select dataset for circosplot:",
+                    "please select column of protein groups:",
                     choices = colnames(data_collection()[["PTM data"]][["other_annotation"]])[-1])
     })
     
@@ -956,6 +993,7 @@ server <- function(input, output) {
         proteinACC<-c(input$selectcol_proteinACCs_termini, input$selectcol_proteinACCs_peptide, input$selectcol_proteinACCs_PTM)
         names(proteinACC)<-input$selectdata_circos
         aa<-circosplot.fun(listoutput,data_collection(),proteinACC,input$selectdata_circos)
+        report_vals$circosplot<-aa
         aa
     })
     

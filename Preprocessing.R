@@ -25,25 +25,26 @@ normalization_by_condition<-function(proteindata=NULL,protein_anno=NULL,maindata
   i<-1
   if (is.null(proteindata)){
     for (i in 1:nrow(maindata)){
-      temp.m<-aggregate(t(maindata[i,]),by=list(DoE[,FoI]), function(x) mean(x,na.rm=TRUE))
+      temp.m<-aggregate(t(maindata[i,]),by=list(DoE[,FoI]),mean,na.action=na.pass, na.rm=TRUE)
       maindata[i,]<-maindata[i,]/unlist(lapply(DoE[,FoI],function(x) sum((x==temp.m[,1])*temp.m[,2])))
     }
   }else{
     for (i in 1:nrow(proteindata)){
-      temp.m<-aggregate(t(proteindata[i,]),by=list(DoE[,FoI]), function(x) mean(x,na.rm=TRUE))
-      proteindata[i,]<proteindata[i,]/unlist(lapply(DoE[,FoI],function(x) sum((x==temp.m[,1])*temp.m[,2])))
+      temp.m<-aggregate(t(proteindata[i,]),by=list(DoE[,FoI]),mean,na.action=na.pass, na.rm=TRUE)
+      proteindata[i,]<-proteindata[i,]/unlist(lapply(DoE[,FoI],function(x) sum((x==temp.m[,1])*temp.m[,2])))
     }
     i<-1
     for (i in 1:nrow(maindata)){
-      temp.m<-aggregate(t(maindata[i,]),by=list(DoE[,FoI]), function(x) mean(x,na.rm=TRUE))
-      temp.m2<-aggregate(t(maindata[i,]),by=list(DoE[,FoI]), function(x) mean(x,na.rm=TRUE))
+      temp.m<-aggregate(t(maindata[i,]),by=list(DoE[,FoI]),mean,na.action=na.pass, na.rm=TRUE)
       ind.pro<-which(rownames(proteindata)==protein_anno[i])
-      if (length(ind.pro)==0){}
-      maindata[i,]<-maindata[i,]/unlist(lapply(DoE[,FoI],function(x) sum((x==temp.m[,1])*temp.m[,2])))/proteindata[match(rownames(proteindata),),]
-    }
+      if (length(ind.pro)==0){maindata[i,]<-NA}else{
+        maindata[i,]<-maindata[i,]/unlist(lapply(DoE[,FoI],function(x) sum((x==temp.m[,1])*temp.m[,2])))/proteindata[ind.pro,]
+      }
+      }
     
   }
-  return(maindata)
+  ind.na<-which(apply(maindata,1,function(x) all(is.na(x))))
+  return(maindata[-ind.na,])
 }
 
 preprocessing<-function(type,dat.ls,DoE,filterlevel,normalize.method,impute.method, FoI_norm, FoI_impute,col_protein_anno=NULL){
