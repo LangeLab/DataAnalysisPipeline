@@ -3,7 +3,7 @@ Here we illustrate the common workflow of [Name of app].
 ## Data Input
 Datasets for input should be from the same set of samples, i.e., with the same meta data, and the first column of meta data should be unique IDs of samples. Upon datasets of intensities (protein, termini, peptide and other PTMs), the column of unique IDs for each row should be selected. These unique IDs will be used for annotation and data integration.
 
-[Insert an example of datasets  here]
+[Example for meta data file](https://github.com/LangeLab/DataAnalysisPipeline/blob/main/meta_data_cleaned.csv)
 
 If any dataset of termini/PTM is available, the annotation tool will be available as well. Note that the information is retrieved from Uniprot service and [Name of app] only supports organisms  of human now. 
 
