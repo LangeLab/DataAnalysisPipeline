@@ -1,0 +1,38 @@
+ID,PatientID,SampleType,Disease,Stage
+NT01,B-03-Dx,Patient,B-ALL,Diagnosis
+NT02,697,Cell Line,B-ALL,Diagnosis
+NT04,T-01-R1-PDXa,PDX,T-ALL,Relapse
+NT05,T-01-R1,Patient,T-ALL,Relapse
+NT06,380,Cell Line,B-ALL,Diagnosis
+NT07,B-08-R2-PDX,PDX,B-ALL,Relapse
+NT08,B-06-R2,Patient,B-ALL,Relapse
+NT10,B-02-Dx-PDXb,PDX,B-ALL,Diagnosis
+NT11,B-01-Dx-PDX,PDX,B-ALL,Diagnosis
+NT18,B-02-Dx,Patient,B-ALL,Diagnosis
+NT19,B-04-Dx-PDX,PDX,B-ALL,Diagnosis
+NT20,Normal,Patient,Normal,Normal
+NT21,Normal,Patient,Normal,Normal
+NT22,B-04-Dx,Patient,B-ALL,Diagnosis
+NT23,B-06-R3-PDXb,PDX,B-ALL,Relapse
+NT25,697,Cell Line,B-ALL,Diagnosis
+NT26,B-01-Dx,Patient,B-ALL,Diagnosis
+NT27,B-07-R3-PDXa,PDX,B-ALL,Relapse
+NT28,B-05-R1,Patient,B-ALL,Relapse
+NT30,B-06-R3,Patient,B-ALL,Relapse
+NT31,B-03-Dx-PDXb,PDX,B-ALL,Diagnosis
+NT32,B-02-Dx-PDXa,PDX,B-ALL,Diagnosis
+NT33,Peers,Cell Line,T-ALL,Diagnosis
+NT34,T-01-R1-PDXb,PDX,T-ALL,Relapse
+NT35,T-01-Dx,Patient,T-ALL,Diagnosis
+NT36,B-06-R2-PDXb,PDX,B-ALL,Relapse
+NT37,T-02-Dx,Patient,T-ALL,Diagnosis
+NT38,DND41,Cell Line,T-ALL,Diagnosis
+NT39,B-06-R2-PDXa,PDX,B-ALL,Relapse
+NT40,Peers,Cell Line,T-ALL,Diagnosis
+NT41,B-07-R3,Patient,B-ALL,Relapse
+NT42,B-07-R3-PDXb,PDX,B-ALL,Relapse
+NT44,B-05-R1-PDX,PDX,B-ALL,Relapse
+NT45,T-01-Dx-PDX,PDX,T-ALL,Diagnosis
+NT47,T-03-Dx,Patient,T-ALL,Diagnosis
+NT48,380,Cell Line,B-ALL,Diagnosis
+NT49,B-08-R2,Patient,B-ALL,Relapse
