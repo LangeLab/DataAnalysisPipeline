@@ -9,7 +9,7 @@ IDV_plot<-function(data,facet_factor,DoE){
   df<-melt(data,id.vars="name",variable.name="sample",value.name="intensity")
   df<-df %>% mutate(group=factor(DoE[match(sample,DoE[,1]),facet_factor]))
   g<-ggplot(df,aes(y=name,x=log2(intensity)))+geom_boxplot()+geom_point(aes(color=factor(sample)))+
-    facet_wrap(~group,strip.position = "left",ncol=1)
+    coord_flip()+facet_wrap(~group,strip.position = "bottom",nrow=1)
   return(g)
 }
 
@@ -33,26 +33,41 @@ corrplot_customize<-function(data,order, p_threshold=NULL, ncluster=NULL, colors
   }
 }
 
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(patchwork)
+library(drawProteins)
+library(UniprotR) 
+library(gridExtra)
+
+
 combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, col_position, modificationType){
   if(length(ind)==0){return()}
+  selected_length <- GetSeqLength(selected_protein, directorypath = NULL)
+  # prepare the dataset to plot
   sub.PTM.data<-PTM.data.ls[["data"]][ind,]
   anno.PTM<-PTM.data.ls[["other_annotation"]][ind,c(proteinACC, col_position, modificationType)]
   colnames(anno.PTM)<-c("proteinACC","position","modificationtype")
   anno.PTM$position<-as.numeric(anno.PTM$position)
   df<-melt(cbind(sub.PTM.data, anno.PTM),measure.vars=colnames(sub.PTM.data))
+  
+  # lolipop plot
   g1<-ggplot(df, aes(x=position, y=log10(value))) +
-      geom_point(size=4, alpha=0.6)+
-      geom_segment(aes(x=position, xend=position, y=0, yend=log10(value))) +
-      facet_wrap(~modificationtype,strip.position = "left")+theme_bw()
+    geom_point(size=4, alpha=0.6)+ 
+    geom_segment(aes(x=position, xend=position, y=0, yend=log10(value))) + 
+    xlim(0,selected_length$Length) +
+    facet_wrap(~modificationtype,strip.position = "right")+theme_bw()
+  
+  # structure plot
   prot_data <- get_features(selected_protein)
   prot_data <- feature_to_dataframe(prot_data)
   p <- draw_canvas(prot_data)
   p <- draw_chains(p, prot_data,size=0.5)
-  p <- draw_domains(p, prot_data)
-  p <- draw_repeat(p, prot_data)
-  p <- draw_motif(p, prot_data)
-  p <- draw_phospho(p, prot_data, size = 5)
-  
+  p <- draw_domains(p, prot_data,show.legend = FALSE)
+  p <- draw_repeat(p, prot_data,show.legend = FALSE)
+  p <- draw_motif(p, prot_data,show.legend = FALSE)
+  p <- draw_phospho(p, prot_data, size = 5,show.legend = FALSE)
   # background and y-axis
   p <- p + theme_bw(base_size = 7.5) + # white backgnd & change text size
     theme(panel.grid.minor=element_blank(),
@@ -60,12 +75,12 @@ combined_lolipop_plot<-function(selected_protein, PTM.data.ls,ind,proteinACC, co
     theme(axis.ticks = element_blank(),
           axis.text.y = element_blank()) +
     theme(panel.border = element_blank())
-  
   # add titles
   #rel_subtitle <- paste0("circles = phosphorylation sites\n",
-  #                       "RHD = Rel Homology Domain\nsource:Uniprot")
-
-  g2<-p
+  #                       "RHD = Rel Homology Domain\nsource:Uniprot"
+  g2<-p + xlim(0,selected_length$Length)
+  #combine 
+  #return(g1+g2+plot_layout(nrow = 2,heights=c(2,1)))
   return(g1+g2+plot_layout(nrow = 2,heights=c(2,1)))
 }
 
@@ -128,7 +143,7 @@ circosplot.fun<-function(SIoutput.ls,dat.ls,proteinACC,ds.included){
   highlight.sector(sectors[grep("no change",sectors)], track.index=2, col="#94B0B3", text='', cex=0.7, text.col='black', niceFacing=TRUE)
   highlight.sector(sectors[grep("up",sectors)], track.index=2, col="#FC4E07", text='Up', cex=0.7, text.col='black', niceFacing=TRUE)
   
-  colorscheme2<-brewer.pal(12, "Set3")
+  colorscheme2<-brewer.pal(12, "Paired")
   
   lapply(c("protein data",ds.included),function(x){highlight.sector(sectors[grep(x,sectors)], 
                                                                     track.index=1,col=sample(colorscheme2,1), text=x, cex=0.8, text.col='white', niceFacing=TRUE)})

@@ -61,12 +61,12 @@ datacompleteness<-function(fixed_data, DoE){
   percent.samples<-percent.samples[order(percent.samples,decreasing=TRUE)]
   temp.df<-data.frame(protein=1:nrow(fixed_data),datacompleteness=percent.samples)
   ggplot(temp.df,aes(protein,datacompleteness))+geom_point()+labs(y="Data Completeness",x="Unique feature")+
-  geom_hline(yintercept=0.99, linetype="dashed", color = "red")+
-  annotate("text", nrow(temp.df), 0.99, vjust = -0.5, label = "99%", color="red")+
-  geom_hline(yintercept=0.9, linetype="dashed", color = "red")+
-  annotate("text", nrow(temp.df), 0.9, vjust = -0.5, label = "90%", color="red")+
-  geom_hline(yintercept=0.5, linetype="dashed", color = "red")+
-  annotate("text", nrow(temp.df), 0.5, vjust = -0.5, label = "50%", color="red")+
+  geom_vline(xintercept=max(which(temp.df$datacompleteness>=0.99)), linetype="dashed", color = "red")+
+  annotate("text", max(which(temp.df$datacompleteness>=0.99)), 1.1, vjust = -0.5, label = "99%", color="red")+
+  geom_vline(xintercept=max(which(temp.df$datacompleteness>=0.9)), linetype="dashed", color = "red")+
+  annotate("text", max(which(temp.df$datacompleteness>=0.9)), 1.1, vjust = -0.5, label = "90%", color="red")+
+  geom_vline(xintercept=max(which(temp.df$datacompleteness>=0.5)), linetype="dashed", color = "red")+
+  annotate("text", max(which(temp.df$datacompleteness>=0.5)), 1.1, vjust = -0.5, label = "50%", color="red")+
   theme_classic()
 }
 

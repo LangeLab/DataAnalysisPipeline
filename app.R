@@ -20,6 +20,7 @@ options(shiny.maxRequestSize=20*1024^2)
 ui <- dashboardPage(
     dashboardHeader(title="Proteomics Data Analysis Pipeline", titleWidth = 350),
     dashboardSidebar(width = 275,sidebarMenu(
+        menuItem("Start",tabName="Start"),
         menuItem("Input and annotation", tabName = "IA"),
         menuItem("Quality Control" , tabname = "QC", icon = icon("bars"),
             menuSubItem("Standard based QC", tabName = "StandardQC"),
@@ -36,6 +37,12 @@ ui <- dashboardPage(
         menuItem("Generate a report", tabName="GenerateReport"))),
         dashboardBody(
             tabItems(
+                tabItem(tabName="Start",
+                    h3("ProteoQuant V0.1"),
+                    h5("This is a Shiny app that provides a data analysis pipeline for quantitative proteomics datasets."),
+                    h5("For details of format for input datasets, please visit ", a("our GitHub page", href="https://github.com/LangeLab/DataAnalysisPipeline/")),
+                    h5("Developed and maintained by ", a("Lange Lab", href="langelab.med.ubc.ca"))
+                ),
                 # Input and annotation ----
                 tabItem(tabName="IA",
                         h4("File input"),
@@ -154,7 +161,8 @@ ui <- dashboardPage(
                                tabPanel("Data Completeness",
                                         plotOutput("graph5")),
                                tabPanel("Correlation Plot",
-                                         plotOutput("graph6")))
+                                         plotOutput("graph6"))),
+                        downloadButton("downloadQCplots", "Download all plots")
                             #conditionalPanel("input.whethercorrectbatch==1",
                              #                plotOutput("sample_batch_plot"))
                         )),
@@ -215,8 +223,9 @@ ui <- dashboardPage(
                             uiOutput("FoI"),
                             uiOutput("FoIlevels"),
                             h5("Volcano plot of DE testing results"),
-                            plotOutput("volcanoplot")%>% withSpinner(color="#0dc5c1"),
-                            downloadButton("DownloadDEresults","Download Differential Expression test results"))
+                            plotOutput("volcanoplot", width="500px") %>% withSpinner(color="#0dc5c1"),
+                            downloadButton("DownloadDEresults","Download Differential Expression test results"),
+                            downloadButton("DownloadVolcano", "Download Volcano plot"))
                         )),
                 # Dimensionality Reduction ----
                 tabItem(tabName = "DR",
@@ -234,7 +243,8 @@ ui <- dashboardPage(
                                     choices=c("PCA","t-SNE", "UMAP")),
                         conditionalPanel('input.DRmethod=="t-SNE"',
                                          numericInput("tSNEper","Specify the perplexity for t-SNE", 0)))),
-                        box(width=12,plotOutput("dimenreduction"))),
+                        box(width=12,plotOutput("dimenreduction")),
+                        downloadButton("downloaddmr", "Download this plot")),
                 # clustering ----
                 tabItem(tabName="Clustering",
                         h4("5. Clustering"),
@@ -253,11 +263,14 @@ ui <- dashboardPage(
                                          checkboxInput("whetherlabel", 
                                                        h5("include row labels"), 
                                                        value = FALSE)),
+                        conditionalPanel('input.Cmethod == "Hierarchical Clustering"',
+                                         uiOutput("sidebar_group")),
                         conditionalPanel('input.Cmethod != "Hierarchical Clustering"',
                                          numericInput("clusternum", 
                                                       h5("the number of centers: "), 
                                                       value = 4)))),
-                        box(width=12,plotOutput("cluster"))),
+                        box(width=12,plotOutput("cluster")),
+                        downloadButton("downloadcluster", "Download this plot")),
                 # Individual Protein Visualization ----
                 tabItem(tabName="IDV1",
                         uiOutput("selectdata_IDV"),
@@ -271,7 +284,8 @@ ui <- dashboardPage(
                             column(width=6,
                                 DT::dataTableOutput("IDV_table"),style = "height:500px; overflow-y: scroll;overflow-x: scroll;"),
                             column(width=6,
-                                plotOutput("IDV_boxplot"))))
+                                plotOutput("IDV_boxplot"))),
+                        downloadButton("downloadIDV_boxplot", "Download this plot"))
                         ),
                 tabItem(tabName="IDV2",
                         selectInput("corrorder","Please specify the type of correlation plot",
@@ -285,7 +299,8 @@ ui <- dashboardPage(
                         fluidRow(
                         box(width=12,
                             column(width=6,DT::dataTableOutput("IDV_corrtable"),style = "height:500px; overflow-y: scroll;overflow-x: scroll;"),
-                            column(width=6,plotOutput("IDV_corrplot"))))
+                            column(width=6,plotOutput("IDV_corrplot"))),
+                        downloadButton("downloadIDV_corrplot", "Download this plot"))
                 ),
             tabItem(tabName="IDV3",
                     uiOutput("proteinACC"),
@@ -299,7 +314,8 @@ ui <- dashboardPage(
                     uiOutput("selectcol_proteinACC_termini"),
                     uiOutput("selectcol_proteinACC_peptide"),
                     uiOutput("selectcol_proteinACC_PTM"),
-                    fluidRow(box(plotOutput("circosplot")))
+                    fluidRow(box(plotOutput("circosplot")),
+                             downloadButton("downloadcircosplots", "Download this plot"))
             ),
                 # generate report ----
                 tabItem(tabName="GenerateReport",
@@ -470,7 +486,10 @@ server <- function(input, output) {
     })
 
     annotation_res<-eventReactive(input$annoButton,{
-        annotationtool(dataforanno()[,input$anno_idf], dataforanno()[,input$anno_seq], input$lseqwindow)}
+        df<-annotationtool(dataforanno()[,input$anno_idf], dataforanno()[,input$anno_seq], input$lseqwindow)
+        #data_collection()[[input$select_dataset_for_anno]]$other_annotation<-cbind(data_collection()[[input$select_dataset_for_anno]]$other_annotation,df)
+        df
+    }
     )
     
     output$downloadAnnotation <- downloadHandler(
@@ -604,6 +623,20 @@ server <- function(input, output) {
         validate(need(input$selectdata_QC,""))
         report_vals$corplot<-corplot(data_collection()[[input$selectdata_QC]]$data)
         report_vals$corplot})
+    
+    output$downloadQCplots<-downloadHandler(
+        filename = function() {"QCplots.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$cvviolin)
+            print(report_vals$distprotein)
+            print(report_vals$upset)
+            print(report_vals$datacompleteness)
+            print(report_vals$corplot)
+            dev.off()
+        }
+    )
+    
     # pre process ----
     react_data_collection<-reactiveValues()
     react_na_index<-reactiveValues()
@@ -678,6 +711,7 @@ server <- function(input, output) {
             
         })
         
+
         lapply(available_sets,function(x){
             output[[paste0("viewviolin_for_",x)]]<-
                 renderPlot({
@@ -706,6 +740,19 @@ server <- function(input, output) {
                     report_vals[[paste0("viewsummary_for_",x)]]
                 })
         })
+        
+        lapply(available_sets, function(x){
+            output[[paste0("downloadviews_for_",x)]]<-downloadHandler(
+                filename = function() {"Preprocessing.pdf"},
+                content = function(file) {
+                    pdf(file, paper = "default")
+                    grid.text(paste0("Overview for ", x),  x=0.5, y=.9, gp=gpar(fontsize=18), check=TRUE)
+                    plot(report_vals[[paste0("viewviolin_for_",x)]])
+                    dev.off()
+                }
+            )
+        })
+            
         lapply(available_sets, function(x){
             output[[paste0("DownloadProcessedData_for",x)]]<- downloadHandler(
                 filename = function() {
@@ -728,7 +775,8 @@ server <- function(input, output) {
                      plotOutput(paste0("viewviolin_for_",x)),
                      box(width=12,
                          column(width=12,verbatimTextOutput(paste0("viewsummary_for_",x)),style = "height:500px; overflow-y: scroll;overflow-x: scroll;")),
-                     downloadButton(paste0("DownloadProcessedData_for",x),"Download processed data")
+                     downloadButton(paste0("DownloadProcessedData_for",x),"Download processed data"),
+                     downloadButton(paste0("downloadviews_for_",x),"Download overview")
             )
         })
         do.call(tabsetPanel, myTabs)
@@ -822,6 +870,15 @@ server <- function(input, output) {
         }
     )
 
+    output$DownloadVolcano <-downloadHandler(
+        filename = function() {"Volcanoplot.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$volcanoplot)
+            dev.off()
+        }
+    )
+    
     # dimensionality reduction ----
     output$selectdata_DR<-renderUI({
         dataset<-c("protein data", "termini data", "peptide data", "PTM data")[
@@ -838,6 +895,14 @@ server <- function(input, output) {
         report_vals$dmr<-dimen.reduce(react_data_collection[[input$selectdata_DR]], DoE(), input$DRmethod, input$colorfactor, input$tSNEper, includedrows)
         report_vals$dmr
     })
+    output$downloaddmr<-downloadHandler(
+        filename = function() {"dimenreductionplots.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$dmr)
+            dev.off()
+        }
+    )
     
     # clustering ----
     output$selectdata_cluster<-renderUI({
@@ -848,17 +913,31 @@ server <- function(input, output) {
                     choices=dataset)
     })
     
+    output$sidebar_group <- renderUI({
+        selectInput(inputId = "sidebar_group", 
+                    label="Select sidebar grouping",
+                    choices=colnames(DoE())[-1])
+    })
+    
     output$cluster <- renderPlot({
         validate(need(input$selectdata_cluster,""))
         if (input$rows=="all"){includedrows=c(1:nrow(react_data_collection[[input$selectdata_cluster]]))}else{
             includedrows=listoutput[[input$selectdata_cluster]][["DEdf"]]$name}
         if (input$Cmethod=="Hierarchical Clustering"){
-            report_vals$clustering<-fcluster(react_data_collection[[input$selectdata_cluster]], input$Cmethod, includedrows, input$whetherlabel, 0)
+            report_vals$clustering<-fcluster(react_data_collection[[input$selectdata_cluster]], DoE()[,input$sidebar_group],input$Cmethod, includedrows, input$whetherlabel, 0)
         }else{
-            report_vals$clustering<-fcluster(react_data_collection[[input$selectdata_cluster]], input$Cmethod, includedrows, FALSE, input$clusternum)
+            report_vals$clustering<-fcluster(react_data_collection[[input$selectdata_cluster]], NULL,input$Cmethod, includedrows, FALSE, input$clusternum)
         }
         report_vals$clustering
     })
+    output$downloadcluster<-downloadHandler(
+        filename = function() {"clusterplots.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$clustering)
+            dev.off()
+        }
+    )
     
     # Individual Protein Visualization ----
     output$selectdata_IDV<-renderUI({
@@ -899,7 +978,14 @@ server <- function(input, output) {
         report_vals$IDV_boxplot<-IDV_plot(react_data_collection[[input$selectdata_IDV]][rows_include(),],input$facet_factor,DoE())
         report_vals$IDV_boxplot
     })
-    
+    output$downloadIDV_boxplot<-downloadHandler(
+        filename = function() {"boxplots.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$IDV_boxplot)
+            dev.off()
+        }
+    )
     output$IDV_corrplot<-renderPlot({
         validate(need(rows_include(),""))
         report_vals$IDV_corrplot<-do.call(corrplot_customize,list(data=react_data_collection[[input$selectdata_IDV]][rows_include(),],
@@ -909,7 +995,14 @@ server <- function(input, output) {
                                         colorscheme=input$colorscheme))
         report_vals$IDV_corrplot
     })
-    
+    output$downloadIDV_corrplot<-downloadHandler(
+        filename = function() {"corrplots.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$IDV_corrplot)
+            dev.off()
+        }
+    )
     output$IDV_corrtable<-DT::renderDataTable({
         validate(need(rows_include(),""))
         options = list(paging=FALSE)
@@ -955,9 +1048,21 @@ server <- function(input, output) {
                 report_vals[[paste0("CLG_for_",x)]]    
             })
         })
+        lapply(available_proteins,function(x){
+                output[[paste0("DownloadCLG_for_",x)]]<-downloadHandler(
+                    filename = function() {"CLGplots.pdf"},
+                    content = function(file) {
+                        pdf(file, paper = "default")
+                        print(report_vals$cvviolin)
+                        dev.off()
+                    }
+                )
+        })
+        
         myTabs = lapply(available_proteins, function(x){
             tabPanel(title=x, 
-                     plotOutput(paste0("CLG_for_",x)))
+                     plotOutput(paste0("CLG_for_",x)),
+                     downloadButton(paste0("DownloadCLG_for_",x),"Download plot"))
             })
         do.call(tabsetPanel, myTabs)        
     })
@@ -996,6 +1101,15 @@ server <- function(input, output) {
         report_vals$circosplot<-aa
         aa
     })
+    
+    output$downloadcircosplots<-downloadHandler(
+        filename = function() {"Circosplots.pdf"},
+        content = function(file) {
+            pdf(file, paper = "default")
+            print(report_vals$circosplot)
+            dev.off()
+        }
+    )
     
     # report generate ----
     output$report <- downloadHandler(
